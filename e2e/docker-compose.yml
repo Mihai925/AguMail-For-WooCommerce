@@ -1,0 +1,114 @@
+# Real WooCommerce for the AguMail plugin end-to-end specs.
+#
+# Always run with the project name so nothing collides with other stacks:
+#   docker compose -p agumail-woo-e2e up -d
+# (.env next to this file sets COMPOSE_PROJECT_NAME too.)
+#
+# WordPress listens on 8089 INSIDE the container as well as on the host, so the
+# site URL http://localhost:8089 also works for WordPress's own loopback
+# requests (WP-Cron spawn, Action Scheduler's async runner).
+#
+# The fake AguMail is reachable from WordPress as http://fake-agumail:8090 and
+# from the browser as http://localhost:8090.
+
+x-wp-env: &wp-env
+  WORDPRESS_DB_HOST: db
+  WORDPRESS_DB_USER: wordpress
+  WORDPRESS_DB_PASSWORD: wordpress
+  WORDPRESS_DB_NAME: wordpress
+  WORDPRESS_DEBUG: "1"
+  # Reads e2e/wp/wp-config-e2e.php: AGUMAIL_API_URL / AGUMAIL_APP_URL, cron switch.
+  WORDPRESS_CONFIG_EXTRA: "require '/e2e/wp/wp-config-e2e.php';"
+
+services:
+  db:
+    image: mariadb:11.4
+    environment:
+      MARIADB_DATABASE: wordpress
+      MARIADB_USER: wordpress
+      MARIADB_PASSWORD: wordpress
+      MARIADB_ROOT_PASSWORD: root
+    command:
+      - --innodb-flush-log-at-trx-commit=2
+      - --skip-log-bin
+      - --max-connections=200
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 3s
+      timeout: 5s
+      retries: 60
+
+  fake-agumail:
+    image: node:22-alpine
+    user: node
+    working_dir: /srv
+    command: ["node", "server.mjs"]
+    environment:
+      PORT: "8090"
+      PUBLIC_URL: http://localhost:8090
+      LOG_FILE: /e2e/state/fake-agumail/requests.jsonl
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./fake-agumail:/srv:ro
+      - ./.state:/e2e/state
+
+  wordpress:
+    # PHP_TAG=php7.4 (in the environment or .env) runs the same site on PHP 7.4; the volumes stay.
+    image: wordpress:${PHP_TAG:-php8.3}-apache
+    depends_on:
+      db:
+        condition: service_healthy
+      fake-agumail:
+        condition: service_started
+    entrypoint:
+      - bash
+      - -c
+      - >-
+        sed -i 's/^Listen 80$$/Listen 8089/' /etc/apache2/ports.conf &&
+        sed -i 's/<VirtualHost \*:80>/<VirtualHost *:8089>/' /etc/apache2/sites-available/000-default.conf &&
+        exec docker-entrypoint.sh apache2-foreground
+    environment: *wp-env
+    ports:
+      - "8089:8089"
+    volumes:
+      - wp_html:/var/www/html
+      - ../agumail:/var/www/html/wp-content/plugins/agumail:ro
+      - ./fixtures/agumail-v1:/var/www/html/wp-content/plugins/agumail-v1:ro
+      - ${CHECKOUTWC_DIR:-/home/mihai/Projects/pixel-woo/wp-content/plugins/checkout-for-woocommerce}:/var/www/html/wp-content/plugins/checkout-for-woocommerce:ro
+      - ${ELEMENTOR_DIR:-/home/mihai/Projects/pixel-woo/wp-content/plugins/elementor}:/var/www/html/wp-content/plugins/elementor:ro
+      - ${ELEMENTOR_PRO_DIR:-/home/mihai/Projects/pixel-woo/wp-content/plugins/elementor-pro}:/var/www/html/wp-content/plugins/elementor-pro:ro
+      - ./mu-plugins:/var/www/html/wp-content/mu-plugins:ro
+      - ./wp:/e2e/wp:ro
+      - ./.state:/e2e/state
+      - ./wp/php.ini:/usr/local/etc/php/conf.d/zz-agumail-e2e.ini:ro
+
+  # Long-running wp-cli container: `docker compose -p agumail-woo-e2e exec -T wpcli wp ...`
+  # Runs as www-data (uid 33, the Debian WordPress image's owner of the files).
+  wpcli:
+    image: wordpress:cli-${PHP_TAG:-php8.3}
+    user: "33:33"
+    depends_on:
+      - wordpress
+    working_dir: /var/www/html
+    command: ["sleep", "infinity"]
+    environment:
+      <<: *wp-env
+      HOME: /tmp
+    volumes:
+      - wp_html:/var/www/html
+      - ../agumail:/var/www/html/wp-content/plugins/agumail:ro
+      - ./fixtures/agumail-v1:/var/www/html/wp-content/plugins/agumail-v1:ro
+      - ${CHECKOUTWC_DIR:-/home/mihai/Projects/pixel-woo/wp-content/plugins/checkout-for-woocommerce}:/var/www/html/wp-content/plugins/checkout-for-woocommerce:ro
+      - ${ELEMENTOR_DIR:-/home/mihai/Projects/pixel-woo/wp-content/plugins/elementor}:/var/www/html/wp-content/plugins/elementor:ro
+      - ${ELEMENTOR_PRO_DIR:-/home/mihai/Projects/pixel-woo/wp-content/plugins/elementor-pro}:/var/www/html/wp-content/plugins/elementor-pro:ro
+      - ./mu-plugins:/var/www/html/wp-content/mu-plugins:ro
+      - ./wp:/e2e/wp:ro
+      - ./.state:/e2e/state
+      - ./wp/php.ini:/usr/local/etc/php/conf.d/zz-agumail-e2e.ini:ro
+
+volumes:
+  db_data:
+  wp_html:
