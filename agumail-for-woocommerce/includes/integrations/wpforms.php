@@ -32,14 +32,9 @@ function agumail_wpforms_settings_section($sections, $form_data = array()) {
     return $sections;
 }
 
-/**
- * Whether the form asks for double opt-in. A toggle switched off is simply
- * missing from the saved form, so the section saves a marker with itself
- * (agumail_saved): without the marker the form has never been saved with the
- * section, and double opt-in is on, as it starts.
- */
+/** Whether the form asks for double opt-in. A toggle switched off is simply missing from the saved form. */
 function agumail_wpforms_double_opt_in(array $settings) {
-    return empty($settings['agumail_saved']) || !empty($settings['agumail_double_opt_in']);
+    return !empty($settings['agumail_double_opt_in']);
 }
 
 function agumail_wpforms_settings_content($panel) {
@@ -74,7 +69,6 @@ function agumail_wpforms_settings_content($panel) {
             'placeholder' => $select[2],
         ));
     }
-    echo '<input type="hidden" name="settings[agumail_saved]" value="1" />';
     echo '</div>';
 }
 

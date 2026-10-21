@@ -45,11 +45,11 @@ function agumail_cf7_register_property($properties, $contact_form = null) {
     return (array) $properties + array(AGUMAIL_CF7_PROPERTY => array());
 }
 
-/** The form's settings: enabled ('1' or ''), tags, double_opt_in ('1' or '', on for a form never saved) and fields, part => tag name. */
+/** The form's settings: enabled ('1' or ''), tags, double_opt_in ('1' or '') and fields, part => tag name. */
 function agumail_cf7_settings($contact_form) {
     $saved = is_object($contact_form) && method_exists($contact_form, 'prop') ? $contact_form->prop(AGUMAIL_CF7_PROPERTY) : array();
     $saved = is_array($saved) ? $saved : array();
-    $settings = array_merge(array('enabled' => '', 'tags' => '', 'double_opt_in' => '1', 'fields' => array()), $saved);
+    $settings = array_merge(array('enabled' => '', 'tags' => '', 'double_opt_in' => '', 'fields' => array()), $saved);
     $settings['fields'] = array_merge(array_fill_keys(array_keys(agumail_cf7_parts()), ''), is_array($settings['fields']) ? $settings['fields'] : array());
     return $settings;
 }

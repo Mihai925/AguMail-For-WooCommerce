@@ -40,7 +40,7 @@ class AguMail_Elementor_Action extends \ElementorPro\Modules\Forms\Classes\Integ
         $widget->add_control('agumail_double_opt_in', array(
             'label'       => __('Double opt-in', 'agumail'),
             'type'        => \Elementor\Controls_Manager::SWITCHER,
-            'default'     => 'yes',
+            'default'     => '',
             'description' => __('New subscribers confirm by email before they get anything else.', 'agumail'),
             'render_type' => 'none',
         ));

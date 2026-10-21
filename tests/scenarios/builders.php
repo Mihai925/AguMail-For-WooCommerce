@@ -105,7 +105,7 @@ function test_builders_elementor_the_agumail_section_has_tags_double_opt_in_and_
     expect_same('text', $widget->controls['agumail_tags']['type'], 'the tags control is not text');
     expect_same('Separate tags with commas. New tags are created.', $widget->controls['agumail_tags']['description'], 'wrong tags help');
     expect_same('switcher', $widget->controls['agumail_double_opt_in']['type'], 'double opt-in is not a switch');
-    expect_same('yes', $widget->controls['agumail_double_opt_in']['default'], 'double opt-in should start on');
+    expect_same('', $widget->controls['agumail_double_opt_in']['default'], 'double opt-in should start off');
     expect_same('fields_map', $widget->controls['agumail_fields_map']['type'], 'the field map is missing');
     foreach ($widget->controls as $id => $control) {
         expect_same('section_agumail', $control['section'], "$id is outside the AguMail section");
@@ -156,7 +156,7 @@ function test_builders_elementor_auto_detects_every_field_nobody_mapped() {
     expect_same(array('Ada', 'King Lovelace'), array($signup['firstName'], $signup['lastName']), 'the single name field was not split');
     expect_same('+44 20 7946 0000', $signup['phone'], 'the tel field was not the phone');
     expect_same(array('popup', 'VIP'), $signup['tags'], 'wrong tags');
-    expect_same(true, $signup['doubleOptIn'], 'double opt-in should be on');
+    expect_same(false, $signup['doubleOptIn'], 'double opt-in should be off until the merchant switches it on');
     expect_same(array('builder' => 'elementor', 'id' => '12:abc123', 'name' => 'Welcome popup'), $signup['form'], 'wrong form');
     expect_same('https://shop.test/sale/?utm_source=ig', $signup['pageUrl'], 'the page is not the posted referrer');
     expect_same('Email me about offers', $signup['consentText'], 'the consent words are not the acceptance text');
@@ -367,14 +367,14 @@ function test_builders_cf7_the_agumail_tab_lists_the_forms_fields() {
     expect_that(strpos($html, 'Connect this store') === false, 'a connected store is told to connect');
 }
 
-function test_builders_cf7_a_new_form_starts_with_double_opt_in_on_and_says_when_not_connected() {
+function test_builders_cf7_a_new_form_starts_with_double_opt_in_off_and_says_when_not_connected() {
     unset($GLOBALS['agm']['options']['agumail_api_key']);
     $panels = apply_filters('wpcf7_editor_panels', array());
     $form = agm_cf7_form(9, 'New form', array(agm_cf7_tag('email*', 'your-email')));
     $html = agm_capture(function () use ($panels, $form) {
         call_user_func($panels['agumail-panel']['callback'], $form);
     });
-    expect_that(preg_match('/name="agumail-signup\[double_opt_in\]"[^>]*checked/', $html) === 1, 'double opt-in should start on');
+    expect_that(preg_match('/name="agumail-signup\[double_opt_in\]"[^>]*checked/', $html) === 0, 'double opt-in should start off');
     expect_that(preg_match('/name="agumail-signup\[enabled\]"[^>]*checked/', $html) === 0, 'a new form should start off');
     expect_that(strpos($html, 'Connect this store to AguMail under WooCommerce &gt; AguMail. Until then, signups from this form are not sent.') !== false, 'an unconnected store is not told');
 }
@@ -410,7 +410,7 @@ function builders_wpforms_fields(array $extra = array()) {
 }
 
 function builders_wpforms_form(array $settings = array()) {
-    return agm_wpforms_form(42, 'Newsletter', array(), array_merge(array('agumail_enable' => '1', 'agumail_tags' => 'news', 'agumail_double_opt_in' => '1', 'agumail_saved' => '1'), $settings));
+    return agm_wpforms_form(42, 'Newsletter', array(), array_merge(array('agumail_enable' => '1', 'agumail_tags' => 'news', 'agumail_double_opt_in' => '1'), $settings));
 }
 
 function builders_wpforms_submit(array $form_data, array $fields, array $post = array(), $kind = 'shopper_ajax') {
@@ -489,13 +489,6 @@ function test_builders_wpforms_the_mapping_wins_and_double_opt_in_can_be_off() {
     expect_same(array('bea@example.com', 'Bea', 'Stone', false), array($signup['email'], $signup['firstName'], $signup['lastName'], $signup['doubleOptIn']), 'the mapping or the saved switch was not followed');
 }
 
-function test_builders_wpforms_a_form_saved_before_the_section_existed_uses_double_opt_in() {
-    builders_setup();
-    $form = agm_wpforms_form(42, 'Newsletter', array(), array('agumail_enable' => '1'));
-    builders_wpforms_submit($form, builders_wpforms_fields());
-    expect_same(true, builders_only_signup()['doubleOptIn'], 'double opt-in should be on until the merchant switches it off');
-}
-
 function test_builders_wpforms_the_agumail_section_is_in_the_builder_settings() {
     $sections = apply_filters('wpforms_builder_settings_sections', array('general' => 'General'), array());
     expect_same(array('general' => 'General', 'agumail' => 'AguMail'), $sections, 'the AguMail section is missing');
@@ -508,7 +501,7 @@ function test_builders_wpforms_the_agumail_section_is_in_the_builder_settings() 
     $fields = $GLOBALS['agm']['wpforms_fields'];
     expect_same('toggle', $fields['agumail_enable']['option'], 'the switch is not a toggle');
     expect_same('text', $fields['agumail_tags']['option'], 'tags are not text');
-    expect_same(1, $fields['agumail_double_opt_in']['value'], 'double opt-in should start on');
+    expect_same(0, $fields['agumail_double_opt_in']['value'], 'double opt-in should start off');
     $maps = array('agumail_field_email' => array('email'), 'agumail_field_name' => array('name', 'text'),
         'agumail_field_phone' => array('phone', 'text'), 'agumail_field_consent' => array('gdpr-checkbox', 'checkbox'));
     foreach ($maps as $field => $types) {
@@ -517,16 +510,15 @@ function test_builders_wpforms_the_agumail_section_is_in_the_builder_settings() 
         // The consent is never guessed on WPForms: a GDPR box is always required, a plain checkbox may be about anything.
         expect_same($field === 'agumail_field_consent' ? 'No consent box' : 'Detect automatically', $fields[$field]['args']['placeholder'], "$field has the wrong first choice");
     }
-    expect_that(strpos($html, 'name="settings[agumail_saved]"') !== false, 'the section does not mark itself saved');
     expect_that(strpos($html, 'Separate tags with commas. New tags are created.') !== false, 'the tags help is missing');
 }
 
-function test_builders_wpforms_a_switched_off_double_opt_in_shows_off() {
-    $panel = new Agm_WPForms_Settings_Panel(agm_wpforms_form(42, 'Newsletter', array(), array('agumail_enable' => '1', 'agumail_saved' => '1')));
+function test_builders_wpforms_a_switched_on_double_opt_in_shows_on() {
+    $panel = new Agm_WPForms_Settings_Panel(agm_wpforms_form(42, 'Newsletter', array(), array('agumail_enable' => '1', 'agumail_double_opt_in' => '1')));
     agm_capture(function () use ($panel) {
         do_action('wpforms_form_settings_panel_content', $panel);
     });
-    expect_same(0, $GLOBALS['agm']['wpforms_fields']['agumail_double_opt_in']['value'], 'a saved-off double opt-in shows on');
+    expect_same(1, $GLOBALS['agm']['wpforms_fields']['agumail_double_opt_in']['value'], 'a saved-on double opt-in shows off');
 }
 
 // ── Recognising the visitor after a signup (tracking on) ──

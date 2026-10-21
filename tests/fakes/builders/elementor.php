@@ -175,7 +175,7 @@ namespace {
             'edit_post_id'          => 12,
             'submit_actions'        => array('agumail'),
             'agumail_tags'          => '',
-            'agumail_double_opt_in' => 'yes',
+            'agumail_double_opt_in' => '',
             'agumail_fields_map'    => array(),
         ), $settings);
         return new \ElementorPro\Modules\Forms\Classes\Form_Record($record_fields, $settings);
