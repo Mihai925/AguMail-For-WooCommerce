@@ -8,6 +8,11 @@
 // Hooks nobody listens to yet are fired anyway, so a lane that adds a listener
 // is held to the rule the moment it does.
 
+// The site script loads only from AguMail's own hosts or one wp-config.php
+// pins. This store pins the test API, as a development site would, so the
+// addresses below count as AguMail's.
+define('AGUMAIL_API_URL', 'https://api.agumail.test');
+
 // ── What a quiet request looks like ──
 
 function shopper_path_describe(array $writes) {

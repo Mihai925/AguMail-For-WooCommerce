@@ -5,6 +5,10 @@
 // list of forms is cached by housekeeping or the Refresh button, never fetched
 // while a page is built.
 
+// The loader loads only from AguMail's own hosts or one wp-config.php pins.
+// This store pins the test API, as a development site would, so the
+// addresses below count as AguMail's.
+define('AGUMAIL_API_URL', 'https://api.agumail.test');
 define('FORMS_LOADER', 'https://api.agumail.test/embed/agumail-forms.js');
 
 function forms_cache($forms = null, $loader = FORMS_LOADER) {

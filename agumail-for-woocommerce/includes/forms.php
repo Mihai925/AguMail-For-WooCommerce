@@ -126,16 +126,21 @@ function agumail_forms_yes($value) {
     return in_array(strtolower(trim((string) $value)), array('yes', 'true', '1', 'on'), true);
 }
 
-/** The loader's address: from the config, else from the forms cache. None once the store is not connected. */
+/**
+ * The loader's address: from the config, else from the forms cache, and only
+ * on AguMail's own hosts, whatever is stored. None once the store is not
+ * connected.
+ */
 function agumail_forms_loader_url() {
     if (!agumail_has_api_key()) {
         return '';
     }
-    $url = agumail_config('formsLoaderUrl');
-    if (is_string($url) && $url !== '') {
-        return $url;
+    foreach (array(agumail_config('formsLoaderUrl'), agumail_forms_cache()['loaderUrl']) as $url) {
+        if (agumail_is_own_url($url)) {
+            return $url;
+        }
     }
-    return agumail_forms_cache()['loaderUrl'];
+    return '';
 }
 
 /** Once per page, in the footer, whatever number of forms the page has. */
@@ -346,7 +351,7 @@ function agumail_forms_refresh() {
             $forms[] = $form;
         }
     }
-    $loader = isset($body['loaderUrl']) && is_string($body['loaderUrl']) && preg_match('#^https?://#i', $body['loaderUrl']) ? $body['loaderUrl'] : '';
+    $loader = isset($body['loaderUrl']) && agumail_is_own_url($body['loaderUrl']) ? $body['loaderUrl'] : '';
     update_option('agumail_forms_cache', array('loaderUrl' => $loader, 'forms' => $forms, 'fetchedAt' => time()));
     return count($forms);
 }

@@ -61,22 +61,29 @@ function agumail_identify_signature($email) {
 // The script.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Where the script comes from and what it reports to: ['src', 'key', 'endpoint'], or null when there is none. */
+/**
+ * Where the script comes from and what it reports to: ['src', 'key', 'endpoint'],
+ * or null when there is none. Both addresses must be on AguMail's own hosts,
+ * whatever is stored: otherwise there is no script.
+ */
 function agumail_tracking_site() {
     $key = agumail_config('siteKey');
     $src = agumail_config('siteScriptUrl');
     $endpoint = agumail_config('siteEndpoint');
-    if (!is_string($key) || $key === '' || !is_string($src) || $src === '') {
+    if (!is_string($key) || $key === '' || !agumail_is_own_url($src)) {
         // A 1.x site set up by hand.
         $key = trim((string) get_option('agumail_site_key', ''));
         $src = trim((string) get_option('agumail_site_src', ''));
         $endpoint = null;
-        if ($key === '' || $src === '') {
+        if ($key === '' || !agumail_is_own_url($src)) {
             return null;
         }
     }
-    if (!is_string($endpoint) || $endpoint === '') {
+    if (!agumail_is_own_url($endpoint)) {
         $endpoint = agumail_api_url() . '/api/public/site/' . rawurlencode($key) . '/events';
+    }
+    if (!agumail_is_own_url($endpoint)) {
+        return null;
     }
     return array('src' => $src, 'key' => $key, 'endpoint' => $endpoint);
 }

@@ -263,7 +263,7 @@ function agumail_admin_render_checkout() {
     echo '<table class="form-table" role="presentation"><tbody><tr>';
     echo '<th scope="row"><label for="agumail_consent_label">' . esc_html__('Checkbox label', 'agumail') . '</label></th>';
     echo '<td><input name="agumail_consent_label" id="agumail_consent_label" type="text" class="large-text" value="' . esc_attr(agumail_consent_label()) . '" />';
-    echo '<p class="description">' . esc_html__('Shown next to the marketing checkbox on the classic and block checkouts.', 'agumail') . '</p>';
+    echo '<p class="description">' . esc_html__('Shown next to the marketing checkbox on the classic and block checkouts, once the store is connected.', 'agumail') . '</p>';
     echo '<p class="description">' . esc_html__('Links show on the classic checkout and registration forms. The block checkout shows the words only.', 'agumail') . '</p></td>';
     echo '</tr><tr>';
     echo '<th scope="row">' . esc_html__('Checkbox', 'agumail') . '</th>';

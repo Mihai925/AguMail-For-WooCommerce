@@ -4,6 +4,11 @@
 // signature AguMail can check, so nobody holding the public site key can plant
 // product views for somebody else.
 
+// The script loads only from AguMail's own hosts or one wp-config.php pins.
+// This store pins the test API, as a development site would, so the
+// addresses below count as AguMail's.
+define('AGUMAIL_API_URL', 'https://api.agumail.test');
+
 // Test vector, computed the way the server does (Node crypto):
 //   identifySecret = base64url(HMAC-SHA256('tracking-secret', 'site-identify:site_abc123'))
 //                  = 0MuzRMHpG2I2mkdDM-TLd9cwZ3MJcsUZ1e6qXE5oqbg

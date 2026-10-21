@@ -23,15 +23,17 @@ if (!defined('ABSPATH')) {
 define('AGUMAIL_CHECKOUT_FIELD', 'agumail/optin');
 
 /**
- * Whether this shopper sees the box. The agumail_show_checkout_optin filter
+ * Whether this shopper sees the box. Only on a connected store, like the
+ * registration box and the My Account switch: activating the plugin alone
+ * changes nothing on the checkout. The agumail_show_checkout_optin filter
  * hides it (for a customer already known to be subscribed, say); an order
  * placed without the box shown records no answer.
  *
- * On the block checkout the filter decides at woocommerce_init, both for the
+ * On the block checkout this is decided at woocommerce_init, both for the
  * page and for the Store API request that submits the order.
  */
 function agumail_checkout_optin_visible() {
-    return (bool) apply_filters('agumail_show_checkout_optin', true);
+    return agumail_has_api_key() && (bool) apply_filters('agumail_show_checkout_optin', true);
 }
 
 /**

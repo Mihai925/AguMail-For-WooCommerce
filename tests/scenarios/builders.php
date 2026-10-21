@@ -5,6 +5,11 @@
 // fails the visitor's own submission, and, with website tracking on, hands the
 // address and its identify signature back in the form plugin's own answer.
 
+// The site script loads only from AguMail's own hosts or one wp-config.php
+// pins. This store pins the test API, as a development site would, so the
+// addresses below count as AguMail's.
+define('AGUMAIL_API_URL', 'https://api.agumail.test');
+
 require_once dirname(__DIR__) . '/fakes/builders/elementor.php';
 require_once dirname(__DIR__) . '/fakes/builders/cf7.php';
 require_once dirname(__DIR__) . '/fakes/builders/wpforms.php';

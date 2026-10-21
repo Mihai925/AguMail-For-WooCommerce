@@ -50,11 +50,11 @@ function test_consent_declares_hpos_and_block_checkout_support() {
 
 function test_consent_the_plugin_header_names_the_versions_it_needs($plugin_dir) {
     $header = file_get_contents($plugin_dir . '/agumail.php', false, null, 0, 2048);
-    foreach (array('Version:              2.1.0', 'Requires PHP:         7.4', 'Requires Plugins:     woocommerce',
+    foreach (array('Version:              2.1.1', 'Requires PHP:         7.4', 'Requires Plugins:     woocommerce',
         'WC requires at least: 8.0', 'WC tested up to:      11.1') as $line) {
         expect_that(strpos($header, $line) !== false, 'the plugin header is missing "' . $line . '"');
     }
-    expect_same('2.1.0', AGUMAIL_VERSION, 'wrong AGUMAIL_VERSION');
+    expect_same('2.1.1', AGUMAIL_VERSION, 'wrong AGUMAIL_VERSION');
 }
 
 function test_consent_the_block_checkout_registers_the_checkbox() {
@@ -276,6 +276,19 @@ function test_consent_the_filter_hides_the_box_on_both_checkouts_and_nothing_is_
     expect_same(array(), $GLOBALS['agm']['fields'], 'the block checkbox was registered while hidden');
     expect_same(null, agumail_order_optin_answer(consent_submit_classic(array())), 'a hidden classic box recorded an answer');
     expect_same(null, agumail_order_optin_answer(consent_block_request('POST', array('agumail/optin' => true))), 'a hidden block box recorded an answer');
+}
+
+function test_consent_a_store_not_connected_shows_no_box_and_records_nothing() {
+    $key = $GLOBALS['agm']['options']['agumail_api_key'];
+    unset($GLOBALS['agm']['options']['agumail_api_key']);
+    expect_same('', consent_render_classic(), 'the classic checkbox shows on a store not connected');
+    do_action('woocommerce_init');
+    expect_same(array(), $GLOBALS['agm']['fields'], 'the block checkbox is registered on a store not connected');
+    expect_same(null, agumail_order_optin_answer(consent_submit_classic(array())), 'a store not connected recorded a classic answer');
+    expect_same(null, agumail_order_optin_answer(consent_block_request('POST', array('agumail/optin' => true))), 'a store not connected recorded a block answer');
+
+    $GLOBALS['agm']['options']['agumail_api_key'] = $key;
+    expect_that(strpos(consent_render_classic(), 'name="agumail_optin"') !== false, 'connecting the store did not show the box');
 }
 
 // ── Reading it back ──

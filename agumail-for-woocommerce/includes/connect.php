@@ -39,6 +39,8 @@ define('AGUMAIL_PING_STALE', HOUR_IN_SECONDS);
 define('AGUMAIL_PING_PAGE_TIMEOUT', 5);
 define('AGUMAIL_PING_RETRY', 10 * MINUTE_IN_SECONDS);
 define('AGUMAIL_CONFIG_KEYS', 'siteKey,siteScriptUrl,siteEndpoint,formsLoaderUrl,identifySecret');
+// The config's addresses that go on the storefront, kept only on AguMail's own hosts.
+define('AGUMAIL_CONFIG_URL_KEYS', 'siteScriptUrl,siteEndpoint,formsLoaderUrl');
 
 add_action('init', 'agumail_connect_register_admin');
 add_action('admin_init', 'agumail_connect_on_settings_page');
@@ -327,11 +329,20 @@ function agumail_connect_success_message() {
         : __('Connected to AguMail.', 'agumail');
 }
 
-/** Only the keys the plugin knows, each a non-empty string or null. */
+/**
+ * Only the keys the plugin knows, each a non-empty string or null. An address
+ * for the storefront off AguMail's own hosts is null, whoever answered: the
+ * store's pages load only AguMail's scripts.
+ */
 function agumail_connect_clean_config(array $config) {
     $clean = array();
+    $urls = explode(',', AGUMAIL_CONFIG_URL_KEYS);
     foreach (explode(',', AGUMAIL_CONFIG_KEYS) as $key) {
         $value = isset($config[$key]) && is_string($config[$key]) ? trim($config[$key]) : '';
+        if ($value !== '' && in_array($key, $urls, true) && !agumail_is_own_url($value)) {
+            agumail_log('warning', sprintf('The config\'s %s is not on an AguMail host, so it was not kept.', $key));
+            $value = '';
+        }
         $clean[$key] = $value !== '' ? $value : null;
     }
     return $clean;
@@ -380,22 +391,28 @@ function agumail_connect_refusal(array $response) {
 // Advanced: a pasted key and the API address.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Admin action: save the address and key, and connect with them. A refusal puts the previous ones back. */
+/**
+ * Admin action: save the address and key, and connect with them. A refusal
+ * puts the previous ones back.
+ *
+ * The key goes wherever the API URL says, so only an administrator changes the
+ * URL, and a saved key is never sent to another host: moving there takes the
+ * key pasted again. The form leaves the URL field out where it shows the URL
+ * read-only, and the saved URL then stands.
+ */
 function agumail_connect_save_advanced(array $request) {
     $previous_key = get_option('agumail_api_key', false);
     $previous_url = get_option('agumail_api_url', false);
 
-    $key = isset($request['agumail_api_key']) ? trim(sanitize_text_field((string) $request['agumail_api_key'])) : '';
-    if ($key === '') {
-        $key = agumail_api_key();
-    }
+    $pasted = isset($request['agumail_api_key']) ? trim(sanitize_text_field((string) $request['agumail_api_key'])) : '';
+    $key = $pasted !== '' ? $pasted : agumail_api_key();
     if ($key === '') {
         return new WP_Error('agumail_no_key', __('Enter your AguMail API key. You can create one in AguMail under Settings > API keys.', 'agumail'));
     }
 
     $url = null;
-    if (!agumail_api_url_is_pinned()) {
-        $url = isset($request['agumail_api_url']) ? trim((string) $request['agumail_api_url']) : '';
+    if (!agumail_api_url_is_pinned() && isset($request['agumail_api_url'])) {
+        $url = trim((string) $request['agumail_api_url']);
         if ($url === '') {
             $url = AGUMAIL_DEFAULT_API_URL;
         }
@@ -403,9 +420,18 @@ function agumail_connect_save_advanced(array $request) {
             return new WP_Error('agumail_bad_url', __('The API URL must be a full address starting with https://. Plain http:// works only for localhost.', 'agumail'));
         }
         $url = untrailingslashit(esc_url_raw($url));
+        if ($url === agumail_api_url()) {
+            $url = null;
+        }
     }
 
     if ($url !== null) {
+        if (!current_user_can(AGUMAIL_API_URL_CAPABILITY)) {
+            return new WP_Error('agumail_api_url_forbidden', __('Only an administrator can change the API URL.', 'agumail'));
+        }
+        if ($pasted === '' && agumail_connect_normalize_host($url) !== agumail_connect_normalize_host(agumail_api_url())) {
+            return new WP_Error('agumail_key_for_new_host', __('To connect at a new API URL, paste your API key again. A saved key is never sent to another address.', 'agumail'));
+        }
         if ($url === AGUMAIL_DEFAULT_API_URL) {
             delete_option('agumail_api_url');
         } else {
@@ -678,6 +704,9 @@ function agumail_connect_render_advanced() {
     if (agumail_api_url_is_pinned()) {
         echo '<code>' . esc_html(agumail_api_url()) . '</code>';
         echo '<p class="description">' . esc_html__('Set in wp-config.php.', 'agumail') . '</p>';
+    } elseif (!current_user_can(AGUMAIL_API_URL_CAPABILITY)) {
+        echo '<code>' . esc_html(agumail_api_url()) . '</code>';
+        echo '<p class="description">' . esc_html__('Only an administrator can change this.', 'agumail') . '</p>';
     } else {
         echo '<input type="url" name="agumail_api_url" id="agumail_api_url" class="regular-text" value="' . esc_attr(agumail_api_url()) . '" />';
     }

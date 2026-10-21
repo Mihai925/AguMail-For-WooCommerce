@@ -13,6 +13,14 @@ define('AGUMAIL_DEFAULT_APP_URL', 'https://agumail.com');
 // Who manages AguMail from wp-admin: the settings page, its tools, admin-ajax.
 define('AGUMAIL_ADMIN_CAPABILITY', 'manage_woocommerce');
 
+// Who may change the API URL, which is where the key is sent: an administrator,
+// not every store manager.
+define('AGUMAIL_API_URL_CAPABILITY', 'manage_options');
+
+// AguMail's own hosts: its pages domain serves the site script, its API the
+// forms loader and the address the script reports to.
+define('AGUMAIL_OWN_HOSTS', 'agupage.com,api.agumail.com');
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Where AguMail lives. wp-config.php can pin either address with AGUMAIL_API_URL
 // or AGUMAIL_APP_URL, which is how a development or end-to-end site points the
@@ -38,6 +46,39 @@ function agumail_resolve_url($constant, $option, $default) {
     }
     $saved = trim((string) get_option($option, ''));
     return untrailingslashit($saved !== '' ? $saved : $default);
+}
+
+/**
+ * Whether an address may go on the storefront: the site script, the forms
+ * loader, or where the script reports. It must be https on one of AguMail's own
+ * hosts, or on a host wp-config.php pins with AGUMAIL_API_URL or AGUMAIL_APP_URL
+ * (http allowed there, as a local server runs it). Neither AguMail's answers
+ * nor anything saved in the settings adds a host, so the store's pages never
+ * load a script from anywhere else.
+ */
+function agumail_is_own_url($url) {
+    if (!is_string($url) || filter_var($url, FILTER_VALIDATE_URL) === false) {
+        return false;
+    }
+    $parts = wp_parse_url($url);
+    if (!is_array($parts) || empty($parts['host']) || isset($parts['user']) || isset($parts['pass'])) {
+        return false;
+    }
+    $scheme = isset($parts['scheme']) ? strtolower($parts['scheme']) : '';
+    $host = strtolower($parts['host']);
+    if ($scheme === 'https' && in_array($host, explode(',', AGUMAIL_OWN_HOSTS), true)) {
+        return true;
+    }
+    if ($scheme !== 'https' && $scheme !== 'http') {
+        return false;
+    }
+    foreach (array('AGUMAIL_API_URL', 'AGUMAIL_APP_URL') as $constant) {
+        $pinned = defined($constant) ? strtolower((string) wp_parse_url((string) constant($constant), PHP_URL_HOST)) : '';
+        if ($pinned !== '' && $host === $pinned) {
+            return true;
+        }
+    }
+    return false;
 }
 
 function agumail_api_key() {

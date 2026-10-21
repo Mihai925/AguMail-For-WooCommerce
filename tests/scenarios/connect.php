@@ -7,12 +7,13 @@
 
 // ── Helpers ──
 
+/** The config as AguMail hands it out: the site script on its pages domain, the rest on its API. */
 function connect_config() {
     return array(
         'siteKey'        => 'site_abc123',
-        'siteScriptUrl'  => 'https://api.agumail.test/t/site.js',
-        'siteEndpoint'   => 'https://api.agumail.test/api/public/site/site_abc123/events',
-        'formsLoaderUrl' => 'https://api.agumail.test/embed/agumail-forms.js',
+        'siteScriptUrl'  => 'https://agupage.com/_/v1/site.js?v=3',
+        'siteEndpoint'   => 'https://api.agumail.com/api/public/site/site_abc123/events',
+        'formsLoaderUrl' => 'https://api.agumail.com/embed/agumail-forms.js',
         'identifySecret' => '0MuzRMHpG2I2mkdDM-TLd9cwZ3MJcsUZ1e6qXE5oqbg',
     );
 }
@@ -38,7 +39,7 @@ function connect_ping_body($integration = array('status' => 'connected', 'storeU
 }
 
 function connect_forms_body() {
-    return array('ok' => true, 'loaderUrl' => 'https://api.agumail.test/embed/agumail-forms.js', 'forms' => array(
+    return array('ok' => true, 'loaderUrl' => 'https://api.agumail.com/embed/agumail-forms.js', 'forms' => array(
         array('slug' => 'fspring', 'name' => 'Spring', 'doubleOptIn' => true, 'publishedAt' => '2026-09-01T10:00:00Z'),
     ));
 }
@@ -320,6 +321,7 @@ function test_connect_callback_is_only_handled_for_a_store_manager_on_the_settin
 
 function test_connect_advanced_shows_the_api_url_and_a_key_field() {
     connect_merchant();
+    agm_grant('manage_options');
     $html = connect_section_html();
     expect_that(preg_match('/<input[^>]*name="agumail_api_url"[^>]*value="https:\/\/api\.agumail\.test"/', $html) === 1, 'the API URL is not pre-filled');
     expect_that(preg_match('/<input[^>]*type="password"[^>]*name="agumail_api_key"/', $html) === 1, 'no API key field');
@@ -331,6 +333,7 @@ function test_connect_advanced_shows_the_api_url_and_a_key_field() {
 
 function test_connect_advanced_save_connects_with_the_pasted_key() {
     connect_merchant();
+    agm_grant('manage_options');
     agm_http_respond(200, array('ok' => true, 'integrationId' => 'int_2', 'userId' => 'usr_2', 'shopName' => 'Hollow Pine', 'config' => connect_config()));
     $result = connect_admin_action('connect_save_advanced', array(
         'agumail_api_url' => ' https://api.example.test/ ',
@@ -353,6 +356,7 @@ function test_connect_advanced_save_connects_with_the_pasted_key() {
 
 function test_connect_advanced_save_shows_refusals_and_keeps_the_working_key() {
     connect_merchant(true);
+    agm_grant('manage_options');
     $working = agumail_api_key();
     $cases = array(
         array(401, array('ok' => false, 'error' => 'Invalid API key.'), 'Invalid API key.'),
@@ -443,7 +447,7 @@ function connect_serve(array $ping_body, $ping_code = 200) {
             return array('code' => $ping_code, 'body' => $ping_body, 'headers' => array());
         }
         if ($path === '/api/v1/forms') {
-            return array('code' => 200, 'body' => array('ok' => true, 'loaderUrl' => 'https://api.agumail.test/embed/agumail-forms.js', 'forms' => array()), 'headers' => array());
+            return array('code' => 200, 'body' => array('ok' => true, 'loaderUrl' => 'https://api.agumail.com/embed/agumail-forms.js', 'forms' => array()), 'headers' => array());
         }
         return array('code' => 500, 'body' => array('ok' => false, 'error' => 'unexpected'), 'headers' => array());
     });
@@ -619,13 +623,14 @@ function test_connect_the_currency_is_sent_only_when_it_is_one() {
 
 function test_connect_advanced_needs_https_except_on_this_machine() {
     connect_merchant(true);
-    $result = connect_admin_action('connect_save_advanced', array('agumail_api_url' => 'http://api.example.test', 'agumail_api_key' => ''));
+    agm_grant('manage_options');
+    $result = connect_admin_action('connect_save_advanced', array('agumail_api_url' => 'http://api.example.test', 'agumail_api_key' => 'agm_' . str_repeat('c', 40)));
     expect_same(array(), $result['http'], 'a plain http address was used');
     expect_same('error', connect_notice()['type'], 'a plain http address was not refused');
     expect_that(strpos(connect_notice()['message'], 'https://') !== false, 'the refusal does not say https is needed');
     foreach (array('http://localhost:3011', 'http://127.0.0.1:3011') as $url) {
         agm_http_respond(200, array('ok' => true, 'integrationId' => 'int_1', 'userId' => 'usr_1', 'shopName' => 'Hollow Pine', 'config' => connect_config()));
-        $result = connect_admin_action('connect_save_advanced', array('agumail_api_url' => $url, 'agumail_api_key' => ''));
+        $result = connect_admin_action('connect_save_advanced', array('agumail_api_url' => $url, 'agumail_api_key' => 'agm_' . str_repeat('c', 40)));
         expect_same($url . '/api/v1/connect', $result['http'][0]['url'], "$url was refused");
     }
 }
@@ -824,4 +829,238 @@ function test_connect_the_key_is_saved_autoloaded_by_the_exchange_and_the_advanc
     connect_admin_action('connect_save_advanced', array('agumail_api_url' => 'https://api.agumail.test', 'agumail_api_key' => 'agm_' . str_repeat('d', 40)));
     expect_same('agm_' . str_repeat('c', 40), get_option('agumail_api_key'), 'the working key was not put back');
     expect_same(true, $GLOBALS['agm']['autoload']['agumail_api_key'], 'the working key was put back without autoload');
+}
+
+// ── Where the key goes, and what runs on the storefront ──
+
+/** A config as a host that is not AguMail would answer it: every address points back at that host. */
+function connect_foreign_config() {
+    return array_merge(connect_config(), array(
+        'siteScriptUrl'  => 'https://evil.test/site.js',
+        'siteEndpoint'   => 'https://evil.test/events',
+        'formsLoaderUrl' => 'https://evil.test/forms.js',
+    ));
+}
+
+/** A storefront page with a form on it: the address of each AguMail script it enqueued. */
+function connect_storefront_scripts() {
+    unset($GLOBALS['agm']['scripts']['agumail-site'], $GLOBALS['agm']['scripts']['agumail-forms']);
+    agm_request('storefront page', 'shopper', function () {
+        do_action('init');
+        do_action('wp_enqueue_scripts');
+        agm_shortcode('agumail_form', array('slug' => 'fspring'));
+        do_action('wp_footer');
+    });
+    $scripts = array();
+    foreach (array('agumail-site', 'agumail-forms') as $handle) {
+        $script = agm_script($handle);
+        if ($script && !empty($script['enqueued'])) {
+            $scripts[$handle] = $script['src'];
+        }
+    }
+    return $scripts;
+}
+
+function connect_url_fields(array $config) {
+    return array($config['siteScriptUrl'], $config['siteEndpoint'], $config['formsLoaderUrl']);
+}
+
+function test_connect_only_an_administrator_changes_the_api_url() {
+    connect_merchant(true);
+    $key = agumail_api_key();
+    $cases = array(
+        array('https://evil.test', ''),
+        array('https://evil.test', 'agm_' . str_repeat('c', 40)),
+        array('', ''),
+    );
+    foreach ($cases as $case) {
+        $result = connect_admin_action('connect_save_advanced', array('agumail_api_url' => $case[0], 'agumail_api_key' => $case[1]));
+        expect_same(array(), $result['http'], 'a store manager connected at an API URL of their choosing: "' . $case[0] . '"');
+        expect_same(array('type' => 'error', 'message' => 'Only an administrator can change the API URL.'), connect_notice(), 'a store manager changing the API URL was not refused plainly');
+        expect_same('https://api.agumail.test', agumail_api_url(), 'a store manager changed the API URL');
+        expect_same($key, agumail_api_key(), 'a refused save changed the key');
+    }
+
+    // The rest of Advanced is theirs as before; the API URL is shown, not offered.
+    $html = connect_section_html();
+    expect_that(preg_match('/<input[^>]*name="agumail_api_url"/', $html) === 0, 'a store manager is offered the API URL to edit');
+    expect_that(strpos($html, '<code>https://api.agumail.test</code>') !== false, 'the API URL is not shown to a store manager');
+    expect_that(strpos($html, 'Only an administrator can change this.') !== false, 'a store manager is not told who can change it');
+    expect_that(preg_match('/<input[^>]*type="password"[^>]*name="agumail_api_key"/', $html) === 1, 'a store manager lost the key field');
+
+    // Their form, without the URL field, connects at the saved address.
+    agm_http_respond(200, array('ok' => true, 'integrationId' => 'int_1', 'userId' => 'usr_1', 'shopName' => 'Hollow Pine', 'config' => connect_config()));
+    $result = connect_admin_action('connect_save_advanced', array('agumail_api_key' => 'agm_' . str_repeat('c', 40)));
+    expect_same('https://api.agumail.test/api/v1/connect', $result['http'][0]['url'], 'a store manager could not reconnect at the saved API URL');
+    expect_same('Bearer agm_' . str_repeat('c', 40), $result['http'][0]['headers']['Authorization'], 'the pasted key was not used');
+    expect_same('https://api.agumail.test', get_option('agumail_api_url'), 'saving without the URL field reset the API URL');
+
+    // An administrator can.
+    agm_grant('manage_options');
+    expect_that(preg_match('/<input[^>]*name="agumail_api_url"[^>]*value="https:\/\/api\.agumail\.test"/', connect_section_html()) === 1, 'an administrator is not offered the API URL');
+    agm_http_respond(200, array('ok' => true, 'integrationId' => 'int_1', 'userId' => 'usr_1', 'shopName' => 'Hollow Pine', 'config' => connect_config()));
+    $result = connect_admin_action('connect_save_advanced', array('agumail_api_url' => 'https://api.other.test', 'agumail_api_key' => 'agm_' . str_repeat('d', 40)));
+    expect_same('https://api.other.test/api/v1/connect', $result['http'][0]['url'], 'an administrator could not change the API URL');
+    expect_same('https://api.other.test', agumail_api_url(), 'the administrator\'s API URL was not saved');
+}
+
+function test_connect_a_new_api_host_needs_the_key_pasted_again() {
+    connect_merchant(true);
+    agm_grant('manage_options');
+    $saved = agumail_api_key();
+    foreach (array('https://evil.test', 'https://api.agumail.test.evil.test', 'https://api.agumail.test:8443', 'http://localhost:3011', '') as $url) {
+        $result = connect_admin_action('connect_save_advanced', array('agumail_api_url' => $url, 'agumail_api_key' => ''));
+        expect_same(array(), $result['http'], 'the saved key was sent to "' . $url . '"');
+        $notice = connect_notice();
+        expect_same('error', $notice['type'], 'a new host without the key was not refused: "' . $url . '"');
+        expect_that(stripos($notice['message'], 'paste your API key') !== false, 'the merchant is not told to paste the key: ' . $notice['message']);
+        expect_that(strpos($notice['message'], "\u{2014}") === false, 'UI copy carries an em-dash');
+        expect_same('https://api.agumail.test', agumail_api_url(), 'a refused save moved the API URL to "' . $url . '"');
+        expect_same($saved, agumail_api_key(), 'a refused save changed the key');
+    }
+
+    // Everything after still goes to the address the key was saved for.
+    connect_serve(connect_ping_body());
+    $result = agm_request('ping', 'cron', function () { agumail_run_in_background('agumail_connect_ping'); });
+    expect_same('https://api.agumail.test/api/v1/ping?platform=woocommerce', $result['http'][0]['url'], 'ping left the saved address');
+
+    // The same host keeps the saved key.
+    agm_http_respond(200, array('ok' => true, 'integrationId' => 'int_1', 'userId' => 'usr_1', 'shopName' => 'Hollow Pine', 'config' => connect_config()));
+    $result = connect_admin_action('connect_save_advanced', array('agumail_api_url' => 'https://api.agumail.test/', 'agumail_api_key' => ''));
+    expect_same('Bearer ' . $saved, $result['http'][0]['headers']['Authorization'], 'the same host did not keep the saved key');
+
+    // Pasted again, only the pasted key goes to the new host.
+    $pasted = 'agm_' . str_repeat('e', 40);
+    agm_http_respond(200, array('ok' => true, 'integrationId' => 'int_1', 'userId' => 'usr_1', 'shopName' => 'Hollow Pine', 'config' => connect_config()));
+    $result = connect_admin_action('connect_save_advanced', array('agumail_api_url' => 'https://api.other.test', 'agumail_api_key' => $pasted));
+    expect_same('https://api.other.test/api/v1/connect', $result['http'][0]['url'], 'the new host was not used');
+    foreach (agm_http_requests() as $request) {
+        if (strpos($request['url'], 'https://api.agumail.test/') !== 0) {
+            expect_same('Bearer ' . $pasted, $request['headers']['Authorization'], 'the saved key reached ' . $request['url']);
+        }
+    }
+}
+
+function test_connect_addresses_off_agumails_hosts_are_not_kept_or_loaded() {
+    connect_merchant();
+    $start = connect_start();
+    $answer = connect_exchange_ok();
+    $answer['config'] = connect_foreign_config();
+    agm_http_respond(200, $answer);
+    agm_http_respond(200, array_merge(connect_forms_body(), array('loaderUrl' => 'https://evil.test/forms.js')));
+    connect_callback(array('code' => 'c1.p.s', 'state' => $start['query']['state']));
+    $config = get_option('agumail_config');
+    expect_same(array(null, null, null), connect_url_fields($config), 'addresses off AguMail\'s hosts were kept from the exchange');
+    expect_same('site_abc123', $config['siteKey'], 'the site key was dropped with them');
+    expect_same(connect_config()['identifySecret'], $config['identifySecret'], 'the identify secret was dropped with them');
+    $cache = get_option('agumail_forms_cache');
+    expect_same('', $cache['loaderUrl'], 'a forms loader off AguMail\'s hosts was cached');
+    expect_same('fspring', $cache['forms'][0]['slug'], 'the forms were dropped with it');
+    agm_sign_out();
+    expect_same(array(), connect_storefront_scripts(), 'a script off AguMail\'s hosts was put on the storefront');
+
+    // Ping is held to the same hosts.
+    connect_serve(connect_ping_body(array('status' => 'connected', 'storeUrl' => 'shop.test'), connect_config()));
+    agm_request('ping', 'cron', function () { agumail_run_in_background('agumail_connect_ping'); });
+    expect_same(connect_config(), get_option('agumail_config'), 'AguMail\'s own addresses were not kept from ping');
+    expect_same(array('agumail-site' => 'https://agupage.com/_/v1/site.js?v=3', 'agumail-forms' => 'https://api.agumail.com/embed/agumail-forms.js'),
+        connect_storefront_scripts(), 'AguMail\'s own scripts were not put on the storefront');
+    connect_serve(connect_ping_body(array('status' => 'connected', 'storeUrl' => 'shop.test'), connect_foreign_config()));
+    agm_request('ping', 'cron', function () { agumail_run_in_background('agumail_connect_ping'); });
+    expect_same(array(null, null, null), connect_url_fields(get_option('agumail_config')), 'addresses off AguMail\'s hosts were kept from ping');
+    expect_same(array(), connect_storefront_scripts(), 'a script from ping\'s foreign addresses was put on the storefront');
+}
+
+function test_connect_only_https_on_agumails_own_hosts_counts_as_agumails() {
+    $own = array(
+        'https://agupage.com/_/v1/site.js?v=3',
+        'https://api.agumail.com/embed/agumail-forms.js',
+        'https://API.AguMail.com/api/public/site/site_abc123/events',
+    );
+    foreach ($own as $url) {
+        $config = agumail_connect_clean_config(array('siteScriptUrl' => $url, 'siteEndpoint' => $url, 'formsLoaderUrl' => $url));
+        expect_same(array($url, $url, $url), connect_url_fields($config), "AguMail's own address $url was dropped");
+    }
+    $others = array(
+        'http://agupage.com/_/v1/site.js',
+        '//agupage.com/_/v1/site.js',
+        '/_/v1/site.js',
+        'https://www.agupage.com/_/v1/site.js',
+        'https://agumail.com/site.js',
+        'https://agupage.com.evil.test/site.js',
+        'https://evil.test/agupage.com/site.js',
+        'https://agupage.com@evil.test/site.js',
+        'https://evil.test\\@agupage.com/site.js',
+        'https://evil.test#@api.agumail.com/',
+        'https://localhost:3011/p/_/v1/site.js',
+        'javascript:alert(1)//agupage.com',
+        'data:text/javascript,alert(1)',
+    );
+    foreach ($others as $url) {
+        $config = agumail_connect_clean_config(array('siteScriptUrl' => $url, 'siteEndpoint' => $url, 'formsLoaderUrl' => $url));
+        expect_same(array(null, null, null), connect_url_fields($config), "$url was kept as AguMail's");
+    }
+}
+
+function test_connect_a_host_pinned_in_wp_config_counts_as_agumails() {
+    // As the end-to-end site pins them: the API by its service name, the app as the browser reaches it.
+    define('AGUMAIL_API_URL', 'http://fake-agumail:8090');
+    define('AGUMAIL_APP_URL', 'http://localhost:8090');
+    $pinned = array(
+        'siteScriptUrl'  => 'http://localhost:8090/p/_/v1/site.js?v=e2e',
+        'siteEndpoint'   => 'http://fake-agumail:8090/api/public/site/site_e2e/events',
+        'formsLoaderUrl' => 'http://localhost:8090/embed/agumail-forms.js',
+    );
+    expect_same(array_values($pinned), connect_url_fields(agumail_connect_clean_config($pinned)), 'an address on a pinned host was dropped');
+    expect_same(array(null, null, null), connect_url_fields(agumail_connect_clean_config(array(
+        'siteScriptUrl'  => 'http://evil.test:8090/site.js',
+        'siteEndpoint'   => 'https://evil.test/events',
+        'formsLoaderUrl' => 'http://localhost.evil.test:8090/forms.js',
+    ))), 'an address off the pinned hosts was kept');
+
+    connect_merchant(true);
+    agm_sign_out();
+    update_option('agumail_config', array_merge(connect_config(), $pinned));
+    expect_same(array('agumail-site' => $pinned['siteScriptUrl'], 'agumail-forms' => $pinned['formsLoaderUrl']), connect_storefront_scripts(), 'the pinned host\'s scripts were not put on the storefront');
+}
+
+function test_connect_an_api_url_saved_under_advanced_does_not_make_its_host_agumails() {
+    connect_merchant(true);
+    update_option('agumail_api_url', 'http://localhost:3011');
+    $local = array(
+        'siteScriptUrl'  => 'http://localhost:3011/p/_/v1/site.js',
+        'siteEndpoint'   => 'http://localhost:3011/api/public/site/site_abc123/events',
+        'formsLoaderUrl' => 'http://localhost:3011/embed/agumail-forms.js',
+    );
+    expect_same(array(null, null, null), connect_url_fields(agumail_connect_clean_config($local)), 'a saved API URL counted as a pin');
+}
+
+function test_connect_a_foreign_address_saved_earlier_never_loads_on_the_storefront() {
+    connect_merchant(true);
+    delete_option('agumail_api_url');
+    agm_sign_out();
+    // Kept by an earlier version, which saved whatever the config said.
+    update_option('agumail_config', connect_foreign_config());
+    update_option('agumail_forms_cache', array_merge(connect_forms_body(), array('loaderUrl' => 'https://evil.test/forms.js')));
+    expect_same(array(), connect_storefront_scripts(), 'a foreign address saved earlier was put on the storefront');
+
+    // A 1.x site's pasted key and script address are still read, from AguMail's hosts only.
+    update_option('agumail_site_key', 'legacy_key');
+    update_option('agumail_site_src', 'https://evil.test/legacy.js');
+    expect_same(array(), connect_storefront_scripts(), 'a foreign 1.x script address was put on the storefront');
+    update_option('agumail_site_src', 'https://agupage.com/_/v1/site.js?v=1');
+    expect_same(array('agumail-site' => 'https://agupage.com/_/v1/site.js?v=1'), connect_storefront_scripts(), 'a 1.x site set up by hand lost its script');
+    expect_same('https://api.agumail.com/api/public/site/legacy_key/events', agumail_tracking_site()['endpoint'], 'the 1.x site reports somewhere else');
+
+    // AguMail's script never reports to a foreign address: a saved one gives way to the API's, and a foreign API stops it.
+    update_option('agumail_config', array_merge(connect_config(), array('siteEndpoint' => 'https://evil.test/events')));
+    expect_same('https://api.agumail.com/api/public/site/site_abc123/events', agumail_tracking_site()['endpoint'], 'the script reports to a foreign address saved earlier');
+    update_option('agumail_api_url', 'https://evil.test');
+    expect_same(null, agumail_tracking_site(), 'the script reports to a foreign API URL saved earlier');
+    expect_that(!isset(connect_storefront_scripts()['agumail-site']), 'the site script loaded while it would report to a foreign address');
+
+    // The forms loader saved earlier gives way to the cache's, and loads only from AguMail's hosts.
+    update_option('agumail_config', array_merge(connect_config(), array('formsLoaderUrl' => 'https://evil.test/forms.js')));
+    update_option('agumail_forms_cache', connect_forms_body());
+    expect_same('https://api.agumail.com/embed/agumail-forms.js', agumail_forms_loader_url(), 'the cached loader did not take over from a foreign one');
 }
