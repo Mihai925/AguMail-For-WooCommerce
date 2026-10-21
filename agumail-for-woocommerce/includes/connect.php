@@ -48,7 +48,10 @@ add_filter('agumail_drain_paused', 'agumail_connect_drain_paused');
 agumail_add_background_action('agumail_housekeeping', 'agumail_connect_housekeeping', 10, 0);
 
 function agumail_connect_register_admin() {
-    agumail_admin_register_section('connection', __('Connection', 'agumail'), 'agumail_connect_render_section', 10);
+    agumail_admin_register_section('connection', __('Connection', 'agumail'), 'agumail_connect_render_section', 10, array(
+        'icon'        => 'admin-links',
+        'description' => __('Your AguMail account and this store.', 'agumail'),
+    ));
     agumail_admin_register_action('connect_start', 'agumail_connect_start');
     agumail_admin_register_action('connect_save_advanced', 'agumail_connect_save_advanced');
     agumail_admin_register_action('connect_disconnect', 'agumail_connect_disconnect');
@@ -610,17 +613,21 @@ function agumail_connect_render_section() {
     agumail_connect_render_advanced();
 }
 
-function agumail_connect_button($action, $label, $primary = true, $confirm = '') {
-    echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" class="agumail-inline-form" style="display:inline-block;margin:0 8px 8px 0;"'
+/** $style is primary, secondary, or delete (a red text button, for undoing something). */
+function agumail_connect_button($action, $label, $style = 'primary', $confirm = '') {
+    $classes = array('primary' => 'button button-primary', 'secondary' => 'button', 'delete' => 'button-link button-link-delete');
+    echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" class="agumail-inline-form"'
         . ($confirm !== '' ? ' onsubmit="return window.confirm(' . esc_attr(wp_json_encode($confirm)) . ');"' : '') . '>';
     agumail_admin_action_fields($action);
-    echo '<button type="submit" class="button' . ($primary ? ' button-primary' : '') . '">' . esc_html($label) . '</button>';
+    echo '<button type="submit" class="' . esc_attr(isset($classes[$style]) ? $classes[$style] : $classes['secondary']) . '">' . esc_html($label) . '</button>';
     echo '</form>';
 }
 
 function agumail_connect_render_not_connected() {
     echo '<p>' . esc_html__('Connect this store to your AguMail account. You approve the connection in AguMail and come straight back here.', 'agumail') . '</p>';
+    echo '<div class="agumail-actions">';
     agumail_connect_button('connect_start', __('Connect to AguMail', 'agumail'));
+    echo '</div>';
 }
 
 function agumail_connect_render_connected(array $connection) {
@@ -640,21 +647,23 @@ function agumail_connect_render_connected(array $connection) {
     $moved = agumail_connect_address_change();
     echo '<tr><th scope="row">' . esc_html__('Status', 'agumail') . '</th><td>';
     if ($moved) {
-        echo '<strong>' . esc_html(sprintf(
+        echo '<div class="agumail-problem is-warning"><strong>' . esc_html(sprintf(
             /* translators: 1: the address the store connected from, 2: this site's address */
             __('This site\'s address changed from %1$s to %2$s. Reconnect if this is the live store.', 'agumail'),
             $moved['from'],
             $moved['to']
-        )) . '</strong> ' . esc_html__('Sending is paused.', 'agumail');
+        )) . '</strong> ' . esc_html__('Sending is paused.', 'agumail') . '</div>';
     } elseif ($status === 'disconnected') {
-        echo '<strong>' . esc_html__('Disconnected in AguMail.', 'agumail') . '</strong> ' . esc_html__('Sending is paused until you reconnect.', 'agumail');
+        echo '<div class="agumail-problem is-warning"><strong>' . esc_html__('Disconnected in AguMail.', 'agumail') . '</strong> '
+            . esc_html__('Sending is paused until you reconnect.', 'agumail') . '</div>';
     } elseif ($status === 'error') {
-        echo '<strong>' . esc_html__('AguMail refused this store.', 'agumail') . '</strong> ' . esc_html($connection['error']);
+        echo '<div class="agumail-problem is-error"><strong>' . esc_html__('AguMail refused this store.', 'agumail') . '</strong> ' . esc_html($connection['error']);
         if ((int) $connection['errorCode'] === 401) {
             echo ' ' . esc_html__('Reconnect to continue.', 'agumail');
         }
+        echo '</div>';
     } else {
-        echo esc_html__('Connected', 'agumail');
+        echo '<span class="agumail-badge is-success">' . esc_html__('Connected', 'agumail') . '</span>';
     }
     echo '</td></tr>';
     if ($since > 0) {
@@ -663,11 +672,11 @@ function agumail_connect_render_connected(array $connection) {
     echo '</tbody></table>';
 
     $needs_reconnect = $moved || in_array($status, array('disconnected', 'error'), true);
-    echo '<p>';
-    agumail_connect_button('connect_start', __('Reconnect', 'agumail'), $needs_reconnect);
-    agumail_connect_button('connect_disconnect', __('Disconnect from this site', 'agumail'), false,
+    echo '<div class="agumail-actions">';
+    agumail_connect_button('connect_start', __('Reconnect', 'agumail'), $needs_reconnect ? 'primary' : 'secondary');
+    agumail_connect_button('connect_disconnect', __('Disconnect from this site', 'agumail'), 'delete',
         __('Disconnect this site from AguMail? Nothing more is sent until you connect again.', 'agumail'));
-    echo '</p>';
+    echo '</div>';
     echo '<p class="description">' . esc_html__('Disconnecting here removes the key from this site only. The store stays in your AguMail account until you remove it there.', 'agumail') . '</p>';
 }
 
@@ -686,9 +695,9 @@ function agumail_connect_render_sync_offer() {
     }
     echo '<p>' . esc_html__('Bring your customers, products and past orders into AguMail. Past orders arrive as history and start no emails.', 'agumail') . '</p>';
     if ($action !== '') {
-        echo '<p>';
+        echo '<div class="agumail-actions">';
         agumail_connect_button($action, __('Sync store data now', 'agumail'));
-        echo '</p>';
+        echo '</div>';
     }
     echo '</div>';
 }
@@ -717,6 +726,6 @@ function agumail_connect_render_advanced() {
     echo '<p class="description">' . esc_html__('Create a key in AguMail under Settings > API keys.', 'agumail') . '</p>';
     echo '</td></tr>';
     echo '</tbody></table>';
-    echo '<p><button type="submit" class="button">' . esc_html__('Save and connect', 'agumail') . '</button></p>';
+    echo '<div class="agumail-actions"><button type="submit" class="button">' . esc_html__('Save and connect', 'agumail') . '</button></div>';
     echo '</form></details>';
 }

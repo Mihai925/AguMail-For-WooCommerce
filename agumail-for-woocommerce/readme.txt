@@ -6,7 +6,7 @@ Tested up to: 7.1
 Requires PHP: 7.4
 WC requires at least: 8.0
 WC tested up to: 11.1
-Stable tag: 2.1.0
+Stable tag: 1.0.0-dev
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,33 +119,6 @@ AguMail's terms of service: https://agumail.com/terms
 AguMail's privacy policy: https://agumail.com/privacy
 
 == Changelog ==
-
-= 2.1.0 =
-* Signups from Elementor Pro forms and popups, Contact Form 7 and WPForms: each form picks its tags, double opt-in and fields, and the visitor's submission never waits on AguMail.
-* Checkout: an option to tick the marketing checkbox by default, and links in its words on the classic checkout and registration forms.
-* The block checkout no longer prints the marketing checkbox answer on the order confirmation and in order emails.
-* Activating the plugin opens its settings page, the Plugins screen links to it, and a notice offers to connect until the store is connected.
-
-= 2.0.0 =
-* One-click connect: approve the store in AguMail and come straight back. An API key still works under Advanced.
-* Checkout is never slowed: storefront hooks only queue changes in the database, and a background task sends them. Nothing is lost when AguMail is unreachable; the queue retries and the Status section shows what waits or failed, with Retry and Discard.
-* Orders count once paid, including cash on delivery once processing. Refunds, cancellations and deletions update the order.
-* Products sync with their values after the save, from every editor, import and the REST API; a stock change alone sends nothing.
-* Abandoned carts: the email is captured when a shopper leaves the field on the classic checkout, the block checkout and CheckoutWC, and restore links rebuild the cart in any browser.
-* The marketing checkbox counts only on a placed order. New checkbox on the registration forms and a switch under My Account.
-* Store data sync runs in the background with exact counts, sends subscribers first, covers all order history, and marks everything as history so no flow starts.
-* Signup forms: shortcode, block and a site-wide popup.
-* Website tracking with signed identification of signed-in customers.
-
-= 1.2.0 =
-* Works with the Cart and Checkout blocks and with High-Performance Order Storage.
-* Orders are sent once paid; refunds and cancellations update their value.
-
-= 1.1.0 =
-* Website tracking, and SKUs and categories on orders, carts and products.
-
-= 1.0.1 =
-* Test connection shows why AguMail refused a store. Cart snapshots carry product images.
 
 = 1.0.0 =
 * Initial release.

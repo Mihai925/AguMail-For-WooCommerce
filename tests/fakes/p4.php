@@ -81,6 +81,11 @@ namespace {
                 return array();
             }
         }
+        // MySQL 8 refuses to compare a date with '', even behind an OR that never reaches it; MariaDB only warns.
+        if (preg_match("/_gmt\\s*(?:[<>]=?|<>|!?=)\\s*''/", $sql)) {
+            $GLOBALS['wpdb']->last_error = "Incorrect DATETIME value: ''";
+            return array();
+        }
         if (preg_match('/^SELECT MAX\(ID\) FROM wp_users/', $sql)) {
             $ids = array_keys($GLOBALS['agm']['users']);
             return $ids ? (string) max($ids) : null;
@@ -254,7 +259,7 @@ namespace {
         $column = strpos($sql, 'wc_orders') !== false ? 'o.id' : 'p.ID';
         $after = agm_p4_after($sql, $column);
         $upto = preg_match('/' . preg_quote($column, '/') . ' <= (\d+)/', $sql, $m) ? (int) $m[1] : PHP_INT_MAX;
-        $since = preg_match("/(?:date_created_gmt|post_date_gmt) >= '([^']+)'/", $sql, $m) ? $m[1] : null;
+        $since = preg_match("/\\(1 = 0 OR (?:o\\.date_created_gmt|p\\.post_date_gmt) >= '([^']+)'\\)/", $sql, $m) ? $m[1] : null;
         $ids = array();
         foreach (agm_p4_shop_orders() as $id => $order) {
             if ($id > $after && $id <= $upto && agm_p4_status_matches($sql, $order) && ($since === null || agm_p4_created($order) >= $since)) {
@@ -297,7 +302,7 @@ namespace {
         $emails = array_map('strtolower', agm_p4_in($sql, $hpos ? 'o.billing_email' : 'e.meta_value'));
         $column = $hpos ? 'o.id' : 'p.ID';
         $upto = preg_match('/' . preg_quote($column, '/') . ' <= (\d+)/', $sql, $m) ? (int) $m[1] : PHP_INT_MAX;
-        $since = preg_match("/(?:o\\.date_created_gmt|p\\.post_date_gmt) >= '([^']+)' THEN/", $sql, $m) ? $m[1] : null;
+        $since = preg_match("/WHEN 1 = 0 OR (?:o\\.date_created_gmt|p\\.post_date_gmt) >= '([^']+)' THEN/", $sql, $m) ? $m[1] : null;
         $rows = array();
         foreach (agm_p4_shop_orders() as $id => $order) {
             $email = strtolower($order->get_billing_email());

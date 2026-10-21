@@ -3,7 +3,7 @@
  * Included from wp-config.php (WORDPRESS_CONFIG_EXTRA) in the e2e stack.
  *
  * The specs switch behaviour by writing /e2e/state/config.json (host:
- * wordpress-plugin/e2e/.state/config.json), read on every request:
+ * e2e/.state/config.json), read on every request:
  *   apiUrl    where the plugin sends API calls (default: the fake AguMail by service name)
  *   appUrl    where the browser is sent for one-click connect (default: the fake, host port)
  *   realCron  true re-enables WP-Cron and Action Scheduler's async runner

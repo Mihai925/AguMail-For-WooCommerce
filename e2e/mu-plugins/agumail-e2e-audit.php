@@ -3,7 +3,7 @@
  * Plugin Name: AguMail e2e audit
  * Description: Test-stack only. Logs every outbound HTTP request WordPress makes, with the context of the request that made it, plus the server time of every PHP request. The specs read these logs to prove the AguMail plugin never calls out from a shopper-facing request and never slows checkout.
  *
- * Logs (JSON lines, host path wordpress-plugin/e2e/.state/audit/):
+ * Logs (JSON lines, host path e2e/.state/audit/):
  *   http.jsonl      one "start" line when a request is about to go out (pre_http_request), one "end" line with
  *                   its duration and result (http_api_debug). A request that never returns still has its start line.
  *   requests.jsonl  one line per PHP request at shutdown: uri, method, status, server ms, tag.

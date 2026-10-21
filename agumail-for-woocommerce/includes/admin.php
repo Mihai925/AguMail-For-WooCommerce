@@ -23,15 +23,21 @@ function &agumail_admin_registry() {
     return $registry;
 }
 
-/** A block of the settings page; lower priorities come first. Registering an id again replaces it. */
-function agumail_admin_register_section($id, $title, $render_callback, $priority = 50) {
+/**
+ * A block of the settings page; lower priorities come first. Registering an id
+ * again replaces it. $args may give an icon (a dashicon name without its
+ * dashicons- prefix) and a one-line description shown under the title.
+ */
+function agumail_admin_register_section($id, $title, $render_callback, $priority = 50, array $args = array()) {
     $registry = &agumail_admin_registry();
     $registry['sections'][$id] = array(
-        'id'       => (string) $id,
-        'title'    => (string) $title,
-        'render'   => $render_callback,
-        'priority' => (int) $priority,
-        'order'    => isset($registry['sections'][$id]) ? $registry['sections'][$id]['order'] : count($registry['sections']),
+        'id'          => (string) $id,
+        'title'       => (string) $title,
+        'render'      => $render_callback,
+        'priority'    => (int) $priority,
+        'icon'        => isset($args['icon']) ? (string) $args['icon'] : 'admin-generic',
+        'description' => isset($args['description']) ? (string) $args['description'] : '',
+        'order'       => isset($registry['sections'][$id]) ? $registry['sections'][$id]['order'] : count($registry['sections']),
     );
 }
 
@@ -55,7 +61,7 @@ function agumail_admin_sections() {
     $sections = $registry['sections'];
     if (!isset($sections['connection'])) {
         $sections['connection'] = array('id' => 'connection', 'title' => __('Connection', 'agumail'),
-            'render' => 'agumail_admin_render_connection_placeholder', 'priority' => 10, 'order' => -1);
+            'render' => 'agumail_admin_render_connection_placeholder', 'priority' => 10, 'icon' => 'admin-links', 'description' => '', 'order' => -1);
     }
     uasort($sections, function ($a, $b) {
         if ($a['priority'] !== $b['priority']) {
@@ -196,9 +202,19 @@ function agumail_admin_notice_from($result) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 add_action('admin_menu', 'agumail_admin_menu');
+add_action('admin_enqueue_scripts', 'agumail_admin_enqueue');
 
 function agumail_admin_menu() {
     add_submenu_page('woocommerce', __('AguMail', 'agumail'), __('AguMail', 'agumail'), AGUMAIL_ADMIN_CAPABILITY, AGUMAIL_ADMIN_PAGE, 'agumail_admin_render_page');
+}
+
+/** The page's stylesheet, and the script that marks the section in view in its side nav. */
+function agumail_admin_enqueue($hook_suffix = '') {
+    if ($hook_suffix !== 'woocommerce_page_' . AGUMAIL_ADMIN_PAGE || !current_user_can(AGUMAIL_ADMIN_CAPABILITY)) {
+        return;
+    }
+    wp_enqueue_style('agumail-admin-page', plugins_url('assets/css/admin.css', AGUMAIL_FILE), array(), AGUMAIL_VERSION);
+    wp_enqueue_script('agumail-admin-nav', plugins_url('assets/js/admin-nav.js', AGUMAIL_FILE), array(), AGUMAIL_VERSION, true);
 }
 
 function agumail_admin_render_page() {
@@ -206,18 +222,64 @@ function agumail_admin_render_page() {
         return;
     }
     $notice = agumail_admin_take_notice();
-    echo '<div class="wrap agumail-settings"><h1>' . esc_html__('AguMail', 'agumail') . '</h1>';
+    $sections = agumail_admin_sections();
+    echo '<div class="wrap agumail-settings">';
+    agumail_admin_render_header();
+    // WordPress moves other plugins' notices to just after this line, so they
+    // sit under the header and not inside it.
+    echo '<hr class="wp-header-end" />';
     if ($notice) {
         $type = in_array($notice['type'], array('success', 'error', 'warning', 'info'), true) ? $notice['type'] : 'info';
         echo '<div class="notice notice-' . esc_attr($type) . ' is-dismissible"><p>' . esc_html($notice['message']) . '</p></div>';
     }
-    foreach (agumail_admin_sections() as $section) {
-        echo '<div class="agumail-section" id="agumail-section-' . esc_attr($section['id']) . '">';
+    echo '<div class="agumail-layout">';
+    echo '<nav class="agumail-nav" aria-label="' . esc_attr__('AguMail settings', 'agumail') . '"><ul>';
+    foreach ($sections as $section) {
+        echo '<li><a href="#agumail-section-' . esc_attr($section['id']) . '"><span class="dashicons dashicons-' . esc_attr($section['icon']) . '" aria-hidden="true"></span>'
+            . esc_html($section['title']) . '</a></li>';
+    }
+    echo '</ul></nav><div class="agumail-main">';
+    foreach ($sections as $section) {
+        echo '<div class="agumail-section agumail-card" id="agumail-section-' . esc_attr($section['id']) . '">';
+        echo '<div class="agumail-card-header"><span class="agumail-card-icon dashicons dashicons-' . esc_attr($section['icon']) . '" aria-hidden="true"></span><div>';
         echo '<h2>' . esc_html($section['title']) . '</h2>';
+        if ($section['description'] !== '') {
+            echo '<p class="agumail-card-description">' . esc_html($section['description']) . '</p>';
+        }
+        echo '</div></div><div class="agumail-card-body">';
         if (is_callable($section['render'])) {
             call_user_func($section['render']);
         }
-        echo '</div>';
+        echo '</div></div>';
+    }
+    echo '</div></div></div>';
+}
+
+/** The title, whether the store is connected, and a way into AguMail itself. */
+function agumail_admin_render_header() {
+    $connected = agumail_has_api_key();
+    $connection = agumail_connection();
+    if (!$connected) {
+        $state = 'neutral';
+        $label = __('Not connected', 'agumail');
+    } elseif ($connection['status'] === 'error' || agumail_drain_paused()) {
+        $state = 'warning';
+        $label = __('Needs attention', 'agumail');
+    } else {
+        $state = 'success';
+        $label = __('Connected', 'agumail');
+    }
+    echo '<div class="agumail-header">';
+    echo '<span class="agumail-logo dashicons dashicons-email-alt" aria-hidden="true"></span>';
+    echo '<h1>' . esc_html__('AguMail', 'agumail') . '</h1>';
+    echo '<span class="agumail-badge is-' . esc_attr($state) . '">' . esc_html($label) . '</span>';
+    if ($connected && $connection['shopName'] !== '') {
+        echo '<span class="agumail-header-account">' . esc_html($connection['shopName']) . '</span>';
+    }
+    if ($connected) {
+        echo '<a class="button agumail-open-app" href="' . esc_url(agumail_app_url()) . '" target="_blank" rel="noopener noreferrer">'
+            . esc_html__('Open AguMail', 'agumail') . '<span class="dashicons dashicons-external" aria-hidden="true"></span>'
+            . '<span class="screen-reader-text">' . esc_html__('(opens in a new tab)', 'agumail') . '</span></a>';
     }
     echo '</div>';
 }
@@ -253,7 +315,10 @@ function agumail_admin_render_connection_placeholder() {
 add_action('init', 'agumail_admin_register_checkout');
 
 function agumail_admin_register_checkout() {
-    agumail_admin_register_section('checkout', __('Checkout', 'agumail'), 'agumail_admin_render_checkout', 40);
+    agumail_admin_register_section('checkout', __('Checkout', 'agumail'), 'agumail_admin_render_checkout', 40, array(
+        'icon'        => 'cart',
+        'description' => __('The marketing checkbox shoppers see when they check out.', 'agumail'),
+    ));
     agumail_admin_register_action('save_checkout', 'agumail_admin_save_checkout');
 }
 

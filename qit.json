@@ -5,7 +5,7 @@
     "slug": "agumail",
     "source": {
       "type": "local",
-      "path": "./agumail"
+      "path": "./agumail-for-woocommerce"
     }
   },
   "environments": {

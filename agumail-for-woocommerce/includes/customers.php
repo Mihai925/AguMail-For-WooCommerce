@@ -637,7 +637,10 @@ function agumail_customers_reverse_sync_batch(array $accounts) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function agumail_customers_register_admin() {
-    agumail_admin_register_section('accounts', __('Customer accounts', 'agumail'), 'agumail_customers_render_section', 45);
+    agumail_admin_register_section('accounts', __('Customer accounts', 'agumail'), 'agumail_customers_render_section', 45, array(
+        'icon'        => 'admin-users',
+        'description' => __('Asking for consent at registration and in My Account.', 'agumail'),
+    ));
     agumail_admin_register_action('customers_save', 'agumail_customers_save_settings');
 }
 

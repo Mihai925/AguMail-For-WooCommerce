@@ -28,7 +28,10 @@ agumail_add_background_action('agumail_housekeeping', 'agumail_forms_housekeepin
 function agumail_forms_init() {
     add_shortcode('agumail_form', 'agumail_form_shortcode');
     agumail_forms_register_block();
-    agumail_admin_register_section('forms', __('Forms', 'agumail'), 'agumail_forms_render_section', 60);
+    agumail_admin_register_section('forms', __('Forms', 'agumail'), 'agumail_forms_render_section', 60, array(
+        'icon'        => 'feedback',
+        'description' => __('Signup forms you publish in AguMail.', 'agumail'),
+    ));
     agumail_admin_register_action('forms_refresh', 'agumail_forms_refresh_action');
     agumail_admin_register_action('forms_save_popup', 'agumail_forms_save_popup');
 }
@@ -418,7 +421,7 @@ function agumail_forms_render_section() {
 
     echo '<p>' . esc_html__('Add a form to any page with its shortcode or the AguMail form block, or show one as a popup across the store.', 'agumail') . '</p>';
     if ($cache['forms']) {
-        echo '<table class="widefat striped" style="max-width:720px"><thead><tr><th>' . esc_html__('Form', 'agumail') . '</th><th>'
+        echo '<table class="widefat striped agumail-forms-table"><thead><tr><th>' . esc_html__('Form', 'agumail') . '</th><th>'
             . esc_html__('Shortcode', 'agumail') . '</th></tr></thead><tbody>';
         foreach ($cache['forms'] as $form) {
             echo '<tr><td>' . esc_html($form['name']) . '</td><td><code>' . esc_html('[agumail_form slug="' . $form['slug'] . '"]') . '</code></td></tr>';
@@ -427,16 +430,16 @@ function agumail_forms_render_section() {
     } else {
         echo '<p>' . esc_html__('No published forms yet. Publish a form in AguMail, then press Refresh.', 'agumail') . '</p>';
     }
-    echo '<p>';
+    echo '<div class="agumail-actions">';
+    agumail_connect_button('forms_refresh', __('Refresh', 'agumail'), 'secondary');
     if ($cache['fetchedAt'] > 0) {
-        echo '<span class="description" style="margin-right:8px">' . esc_html(sprintf(
+        echo '<span class="description">' . esc_html(sprintf(
             /* translators: %s: how long ago, such as "3 hours" */
             __('Last refreshed %s ago.', 'agumail'),
             human_time_diff($cache['fetchedAt'], time())
         )) . '</span>';
     }
-    agumail_connect_button('forms_refresh', __('Refresh', 'agumail'), false);
-    echo '</p>';
+    echo '</div>';
 
     if (!$cache['forms']) {
         return;

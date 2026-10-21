@@ -22,7 +22,7 @@ export type CheckoutType = 'classic' | 'block' | 'checkoutwc';
 export type PluginUnderTest = 'v1' | 'v2';
 
 /**
- * AGUMAIL_E2E_PLUGIN=v1|v2 (default v2, the plugin in wordpress-plugin/agumail).
+ * AGUMAIL_E2E_PLUGIN=v1|v2 (default v2, the plugin in agumail-for-woocommerce).
  * `none` runs a spec with no AguMail plugin at all: an A/A calibration of the environment's noise.
  */
 export function pluginUnderTest(): PluginUnderTest | 'none' {

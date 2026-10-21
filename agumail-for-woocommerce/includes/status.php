@@ -19,7 +19,10 @@ add_action('agumail_drain_sent', 'agumail_status_record_sent', 10, 2);
 add_action('agumail_bulk_sent', 'agumail_status_record_sent', 10, 2);
 
 function agumail_status_register_admin() {
-    agumail_admin_register_section('status', __('Status', 'agumail'), 'agumail_status_render_section', 90);
+    agumail_admin_register_section('status', __('Status', 'agumail'), 'agumail_status_render_section', 90, array(
+        'icon'        => 'info-outline',
+        'description' => __('What was sent, and anything waiting or failed.', 'agumail'),
+    ));
     agumail_admin_register_action('status_retry', 'agumail_status_retry');
     agumail_admin_register_action('status_retry_all', 'agumail_status_retry_all');
     agumail_admin_register_action('status_discard', 'agumail_status_discard');
@@ -231,10 +234,10 @@ function agumail_status_render_failed($total) {
         'AguMail refused %s item, or it failed too many times. Retry sends it again with the next send; Discard drops it.',
         'AguMail refused %s items, or they failed too many times. Retry sends them again with the next send; Discard drops them.',
         $total, 'agumail'), number_format_i18n($total))) . '</p>';
-    echo '<p>';
+    echo '<div class="agumail-actions">';
     agumail_status_button('status_retry_all', __('Retry all', 'agumail'), '');
     agumail_status_button('status_discard_all', __('Discard all', 'agumail'), __('Discard every failed item? AguMail will not receive them.', 'agumail'));
-    echo '</p>';
+    echo '</div>';
     echo '<table class="widefat striped agumail-status-failed"><thead><tr>'
         . '<th scope="col">' . esc_html__('Item', 'agumail') . '</th> <th scope="col">' . esc_html__('Error', 'agumail') . '</th> '
         . '<th scope="col">' . esc_html__('Tries', 'agumail') . '</th> <th scope="col">' . esc_html__('Last tried', 'agumail') . '</th> '
@@ -256,7 +259,7 @@ function agumail_status_render_failed($total) {
 }
 
 function agumail_status_button($action, $label, $confirm) {
-    echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" style="display:inline-block;margin:0 8px 8px 0;"'
+    echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" class="agumail-inline-form"'
         . ($confirm !== '' ? ' onsubmit="return window.confirm(' . esc_attr(wp_json_encode($confirm)) . ');"' : '') . '>';
     agumail_admin_action_fields($action);
     echo '<button type="submit" class="button" name="agumail_do" value="' . esc_attr($action) . '">' . esc_html($label) . '</button></form>';

@@ -6,6 +6,10 @@ $GLOBALS['agm']['logs'] = array();
 
 class Agm_Fake_Logger {
     public function log($level, $message, $context = array()) {
+        // The real one may read its settings (an option not in the cache), and every query clears the last error.
+        if (isset($GLOBALS['wpdb'])) {
+            $GLOBALS['wpdb']->last_error = '';
+        }
         $GLOBALS['agm']['logs'][] = array(
             'level'   => $level,
             'message' => (string) $message,

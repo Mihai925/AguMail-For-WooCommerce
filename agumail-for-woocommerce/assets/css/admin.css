@@ -1,0 +1,588 @@
+/*
+ * AguMail settings page (WooCommerce > AguMail): a header, a side nav and one
+ * card per section, on top of WordPress's own buttons, fields, tables and
+ * notices. Everything is scoped to .agumail-settings, and logical properties
+ * keep it right in right-to-left languages.
+ */
+
+.agumail-settings {
+	--agumail-accent: var(--wp-admin-theme-color, #3858e9);
+	--agumail-accent-soft: #eef1fd;
+	--agumail-border: #dcdcde;
+	--agumail-hairline: #f0f0f1;
+	--agumail-surface: #f6f7f7;
+	--agumail-text: #1d2327;
+	--agumail-muted: #646970;
+	--agumail-radius: 8px;
+	--agumail-pad: 24px;
+	--agumail-sticky-top: 52px;
+}
+
+@supports (background: color-mix(in srgb, red 10%, white)) {
+	.agumail-settings {
+		--agumail-accent-soft: color-mix(in srgb, var(--agumail-accent) 10%, #fff);
+	}
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+
+/* As wide as the nav and the cards together, so Open AguMail lines up with their edge. */
+.agumail-header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 12px;
+	max-width: calc(200px + 24px + 960px);
+	margin: 12px 0 20px;
+}
+
+.agumail-settings .agumail-header h1 {
+	margin: 0;
+	padding: 0;
+	font-size: 23px;
+	font-weight: 600;
+	line-height: 1.3;
+	color: var(--agumail-text);
+}
+
+.agumail-settings .agumail-logo {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 40px;
+	height: 40px;
+	border-radius: 10px;
+	background: var(--agumail-accent);
+	color: #fff;
+	font-size: 22px;
+}
+
+.agumail-header-account {
+	padding-inline-start: 12px;
+	border-inline-start: 1px solid var(--agumail-border);
+	color: var(--agumail-muted);
+}
+
+.agumail-settings .agumail-open-app {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	margin-inline-start: auto;
+}
+
+.agumail-settings .agumail-open-app .dashicons {
+	width: 16px;
+	height: 16px;
+	font-size: 16px;
+}
+
+/* ── Badges and problem callouts ────────────────────────────────────────── */
+
+.agumail-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 2px 10px;
+	border-radius: 999px;
+	background: var(--agumail-hairline);
+	color: #50575e;
+	font-size: 12px;
+	font-weight: 500;
+	line-height: 20px;
+	white-space: nowrap;
+}
+
+.agumail-badge::before {
+	content: "";
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: #8c8f94;
+}
+
+.agumail-badge.is-success {
+	background: #edfaef;
+	color: #007017;
+}
+
+.agumail-badge.is-success::before {
+	background: #00a32a;
+}
+
+.agumail-badge.is-warning {
+	background: #fcf9e8;
+	color: #8a6100;
+}
+
+.agumail-badge.is-warning::before {
+	background: #dba617;
+}
+
+.agumail-badge.is-error {
+	background: #fcf0f1;
+	color: #b32d2e;
+}
+
+.agumail-badge.is-error::before {
+	background: #d63638;
+}
+
+.agumail-problem,
+.agumail-bulk-wait {
+	padding: 8px 12px;
+	border-inline-start: 4px solid #dba617;
+	border-radius: 4px;
+	background: #fcf9e8;
+}
+
+.agumail-problem.is-error {
+	border-inline-start-color: #d63638;
+	background: #fcf0f1;
+}
+
+/* ── Layout and side nav ────────────────────────────────────────────────── */
+
+.agumail-layout {
+	display: grid;
+	grid-template-columns: 200px minmax(0, 960px);
+	gap: 24px;
+	align-items: start;
+	margin-top: 8px;
+}
+
+.agumail-nav {
+	position: sticky;
+	top: var(--agumail-sticky-top);
+}
+
+.agumail-nav ul {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.agumail-nav li {
+	margin: 0 0 2px;
+}
+
+.agumail-nav a {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px 12px;
+	border-radius: 6px;
+	color: #50575e;
+	font-size: 13px;
+	line-height: 1.4;
+	text-decoration: none;
+}
+
+.agumail-nav a:hover {
+	background: rgba(0, 0, 0, 0.04);
+	color: var(--agumail-text);
+}
+
+.agumail-nav .dashicons {
+	flex: none;
+	width: 18px;
+	height: 18px;
+	font-size: 18px;
+	color: #8c8f94;
+}
+
+.agumail-nav a.is-active {
+	background: #fff;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+	color: var(--agumail-text);
+	font-weight: 600;
+}
+
+.agumail-nav a.is-active::before {
+	content: "";
+	position: absolute;
+	inset-block: 8px;
+	inset-inline-start: 0;
+	width: 3px;
+	border-radius: 3px;
+	background: var(--agumail-accent);
+}
+
+.agumail-nav a.is-active .dashicons {
+	color: var(--agumail-accent);
+}
+
+/* ── Cards ──────────────────────────────────────────────────────────────── */
+
+.agumail-card {
+	margin: 0 0 20px;
+	border: 1px solid var(--agumail-border);
+	border-radius: var(--agumail-radius);
+	background: #fff;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+	scroll-margin-top: var(--agumail-sticky-top);
+}
+
+.agumail-card-header {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	padding: 18px var(--agumail-pad);
+	border-bottom: 1px solid var(--agumail-hairline);
+}
+
+.agumail-settings .agumail-card-icon {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	width: 36px;
+	height: 36px;
+	border-radius: 8px;
+	background: var(--agumail-accent-soft);
+	color: var(--agumail-accent);
+	font-size: 20px;
+}
+
+.agumail-settings .agumail-card-header h2 {
+	margin: 0;
+	padding: 0;
+	color: var(--agumail-text);
+	font-size: 15px;
+	font-weight: 600;
+	line-height: 1.4;
+}
+
+.agumail-settings .agumail-card-description {
+	margin: 2px 0 0;
+	color: var(--agumail-muted);
+}
+
+.agumail-card-body {
+	padding: 6px var(--agumail-pad) 20px;
+}
+
+.agumail-card-body > p:first-child {
+	margin-top: 14px;
+}
+
+.agumail-card .description {
+	color: var(--agumail-muted);
+}
+
+/* Settings rows, split by hairlines. WordPress stacks them on small screens. */
+.agumail-card .form-table {
+	margin: 0;
+}
+
+.agumail-card .form-table > tbody > tr + tr > th,
+.agumail-card .form-table > tbody > tr + tr > td {
+	border-top: 1px solid var(--agumail-hairline);
+}
+
+@media screen and (min-width: 783px) {
+	.agumail-card .form-table > tbody > tr > th {
+		width: 180px;
+		padding: 18px 24px 18px 0;
+		color: var(--agumail-text);
+	}
+
+	.agumail-card .form-table > tbody > tr > td {
+		padding: 12px 0;
+	}
+}
+
+/* A form's Save button becomes the card's footer bar. */
+.agumail-card-body p.submit {
+	margin: 20px calc(-1 * var(--agumail-pad)) -20px;
+	padding: 14px var(--agumail-pad);
+	border-top: 1px solid var(--agumail-hairline);
+	border-radius: 0 0 calc(var(--agumail-radius) - 1px) calc(var(--agumail-radius) - 1px);
+	background: var(--agumail-surface);
+}
+
+/* A part of a section, such as the popup or the failed items. */
+.agumail-settings .agumail-card-body h3 {
+	margin: 24px calc(-1 * var(--agumail-pad)) 0;
+	padding: 20px var(--agumail-pad) 0;
+	border-top: 1px solid var(--agumail-hairline);
+	color: var(--agumail-text);
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.agumail-card .widefat {
+	border-color: var(--agumail-border);
+	box-shadow: none;
+}
+
+/* A table inside a settings row, such as the queue: WordPress's row padding is not for it. */
+.agumail-card .form-table .widefat th,
+.agumail-card .form-table .widefat td {
+	width: auto;
+	padding: 8px 10px;
+}
+
+.agumail-status-failed {
+	margin-top: 12px;
+}
+
+/* ── Buttons in a row ───────────────────────────────────────────────────── */
+
+.agumail-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 12px;
+	margin: 16px 0 0;
+}
+
+.agumail-inline-form {
+	display: inline-block;
+	margin: 0;
+}
+
+.agumail-actions + .description {
+	margin-top: 10px;
+}
+
+.agumail-settings .agumail-sync-offer {
+	margin: 16px 0 4px;
+}
+
+.agumail-settings .agumail-sync-offer .agumail-actions {
+	margin: 4px 0 10px;
+}
+
+/* ── Connection: Advanced ───────────────────────────────────────────────── */
+
+.agumail-advanced {
+	margin: 20px calc(-1 * var(--agumail-pad)) -20px;
+	padding: 0 var(--agumail-pad);
+	border-top: 1px solid var(--agumail-hairline);
+}
+
+.agumail-advanced[open] {
+	padding-bottom: 20px;
+}
+
+.agumail-advanced summary {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 14px 0;
+	color: var(--agumail-muted);
+	font-weight: 500;
+	list-style: none;
+	cursor: pointer;
+}
+
+.agumail-advanced summary::-webkit-details-marker {
+	display: none;
+}
+
+.agumail-advanced summary::before {
+	content: "\f345";
+	font: normal 16px/1 dashicons;
+	speak: never;
+}
+
+.rtl .agumail-advanced summary::before {
+	content: "\f341";
+}
+
+.agumail-advanced[open] summary::before {
+	content: "\f347";
+}
+
+.agumail-advanced summary:hover {
+	color: var(--agumail-text);
+}
+
+.agumail-advanced > p:first-of-type {
+	margin-top: 0;
+}
+
+/* ── Store data ─────────────────────────────────────────────────────────── */
+
+.agumail-bulk-outcome {
+	margin: 14px 0 0;
+}
+
+.agumail-bulk-outcome .dashicons,
+.agumail-settings .agumail-bulk-outcome .spinner {
+	float: none;
+	margin: -2px 0 0;
+	margin-inline-end: 6px;
+	vertical-align: middle;
+}
+
+.agumail-bulk-outcome.is-done .dashicons {
+	color: #00a32a;
+}
+
+.agumail-bulk-outcome.is-cancelled .dashicons {
+	color: #8c8f94;
+}
+
+.agumail-bulk-outcome.is-failed .dashicons {
+	color: #d63638;
+}
+
+.agumail-bulk-phases {
+	margin-top: 14px;
+}
+
+.agumail-progress {
+	display: block;
+	width: 100%;
+	max-width: 320px;
+	height: 6px;
+	margin-top: 6px;
+	border: 0;
+	border-radius: 3px;
+	background: var(--agumail-hairline);
+	-webkit-appearance: none;
+	appearance: none;
+}
+
+.agumail-progress::-webkit-progress-bar {
+	border-radius: 3px;
+	background: var(--agumail-hairline);
+}
+
+.agumail-progress::-webkit-progress-value {
+	border-radius: 3px;
+	background: var(--agumail-accent);
+}
+
+.agumail-progress::-moz-progress-bar {
+	border-radius: 3px;
+	background: var(--agumail-accent);
+}
+
+.agumail-bulk-results {
+	display: grid;
+	gap: 6px;
+	margin: 12px 0 0;
+	padding: 12px 16px;
+	border-radius: 6px;
+	background: var(--agumail-surface);
+	list-style: none;
+}
+
+.agumail-bulk-results li {
+	position: relative;
+	margin: 0;
+	padding-inline-start: 16px;
+}
+
+.agumail-bulk-results li::before {
+	content: "";
+	position: absolute;
+	top: 0.6em;
+	inset-inline-start: 2px;
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: #8c8f94;
+}
+
+.agumail-bulk-results li.is-warning::before {
+	background: #dba617;
+}
+
+.agumail-bulk-wait {
+	margin: 12px 0 0;
+}
+
+.agumail-bulk-reload {
+	color: var(--agumail-muted);
+	font-style: italic;
+}
+
+.agumail-bulk-start {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin: 16px 0 0;
+}
+
+.agumail-bulk-start label {
+	margin-inline-end: 4px;
+}
+
+/* ── Forms ──────────────────────────────────────────────────────────────── */
+
+.agumail-forms-table {
+	margin-top: 12px;
+}
+
+.agumail-forms-table code {
+	user-select: all;
+}
+
+/* ── Narrower screens ───────────────────────────────────────────────────── */
+
+@media screen and (max-width: 960px) {
+	.agumail-layout {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 16px;
+	}
+
+	.agumail-nav {
+		position: static;
+	}
+
+	.agumail-nav ul {
+		display: flex;
+		gap: 6px;
+		padding-bottom: 4px;
+		overflow-x: auto;
+	}
+
+	.agumail-nav li {
+		margin: 0;
+	}
+
+	.agumail-nav a {
+		padding: 6px 12px;
+		border: 1px solid var(--agumail-border);
+		border-radius: 999px;
+		background: #fff;
+		white-space: nowrap;
+	}
+
+	.agumail-nav a.is-active {
+		border-color: var(--agumail-accent);
+		box-shadow: none;
+	}
+
+	.agumail-nav a.is-active::before {
+		display: none;
+	}
+}
+
+@media screen and (max-width: 782px) {
+	.agumail-settings {
+		--agumail-pad: 16px;
+	}
+
+	.agumail-card-header {
+		padding-block: 14px;
+	}
+
+	.agumail-card .form-table > tbody > tr > td {
+		padding-bottom: 14px;
+	}
+
+	.agumail-settings .agumail-open-app {
+		margin-inline-start: 0;
+	}
+
+	.agumail-header-account {
+		padding-inline-start: 0;
+		border-inline-start: 0;
+	}
+}

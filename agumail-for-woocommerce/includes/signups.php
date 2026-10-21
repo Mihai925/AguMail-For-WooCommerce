@@ -300,7 +300,10 @@ function agumail_signups_active_builders() {
 
 function agumail_signups_register_admin() {
     if (agumail_signups_active_builders()) {
-        agumail_admin_register_section('signups', __('Form plugins', 'agumail'), 'agumail_signups_render_section', 65);
+        agumail_admin_register_section('signups', __('Form plugins', 'agumail'), 'agumail_signups_render_section', 65, array(
+            'icon'        => 'admin-plugins',
+            'description' => __('Signups from the form plugins on this site.', 'agumail'),
+        ));
     }
 }
 

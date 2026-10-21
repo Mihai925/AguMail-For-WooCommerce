@@ -236,7 +236,10 @@ function agumail_tracking_forget_visitor() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function agumail_tracking_register_admin() {
-    agumail_admin_register_section('tracking', __('Website tracking', 'agumail'), 'agumail_tracking_render_section', 50);
+    agumail_admin_register_section('tracking', __('Website tracking', 'agumail'), 'agumail_tracking_render_section', 50, array(
+        'icon'        => 'visibility',
+        'description' => __('Product views, so flows can follow up on them.', 'agumail'),
+    ));
     agumail_admin_register_action('tracking_save', 'agumail_tracking_save');
 }
 

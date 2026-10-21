@@ -175,7 +175,10 @@ function agumail_bulk_mark(array $state) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function agumail_bulk_register_admin() {
-    agumail_admin_register_section('sync', __('Store data', 'agumail'), 'agumail_bulk_render_section', 20);
+    agumail_admin_register_section('sync', __('Store data', 'agumail'), 'agumail_bulk_render_section', 20, array(
+        'icon'        => 'database',
+        'description' => __('Customers, products and order history, sent in the background.', 'agumail'),
+    ));
     agumail_admin_register_action('bulk_sync_start', 'agumail_bulk_start');
     agumail_admin_register_action('bulk_sync_cancel', 'agumail_bulk_cancel');
     agumail_admin_register_action('bulk_sync_progress', 'agumail_bulk_progress');
@@ -214,7 +217,12 @@ function agumail_bulk_start(array $request = array()) {
     $state['max_order_id'] = $max_order_id;
     $state['max_user_id'] = $max_user_id;
     foreach (agumail_bulk_phases() as $phase) {
-        $state['totals'][$phase] = agumail_bulk_count($phase, $state);
+        $total = agumail_bulk_count($phase, $state);
+        // A count the database refuses is a page it refuses too: say so now, not 0 and a sync that waits forever.
+        if ($total === null) {
+            return new WP_Error('agumail_database', __('The store database did not answer. Try again in a moment.', 'agumail'));
+        }
+        $state['totals'][$phase] = $total;
     }
     update_option('agumail_bulk_state', $state, false);
     agumail_bulk_schedule($state['id'], 0);
@@ -493,9 +501,8 @@ function agumail_bulk_page_size($phase, array $state) {
 }
 
 function agumail_bulk_database_error() {
-    global $wpdb;
     /* translators: the database's own error message */
-    return array('status' => 'retry', 'message' => sprintf(__('the store database did not answer: %s', 'agumail'), (string) $wpdb->last_error));
+    return array('status' => 'retry', 'message' => sprintf(__('the store database did not answer: %s', 'agumail'), agumail_bulk_last_read_error()));
 }
 
 /** AguMail did not take the page: when to try again, or that the sync stops. */
@@ -654,8 +661,11 @@ function agumail_bulk_send_users(array $ids, array &$state, $deadline) {
         }
     }
     $optin_orders = agumail_bulk_optin_orders($lookup, $state);
+    if ($optin_orders === null) {
+        return agumail_bulk_database_error();
+    }
     $checkout_subscribers = $state['phase'] === 'customers' ? agumail_bulk_sent_as_checkout_subscribers($users, $state) : array();
-    if ($optin_orders === null || $checkout_subscribers === null) {
+    if ($checkout_subscribers === null) {
         return agumail_bulk_database_error();
     }
     $unsubscribed = array();
@@ -1173,14 +1183,25 @@ function agumail_bulk_post($endpoint, $collection, array $records, $size, $run_i
 // job, one page at a time, so there is nothing worth caching.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Whether the last read failed: the database answered with an error (an empty answer is not one). */
+/**
+ * Whether the last read failed: the database answered with an error (an empty
+ * answer is not one). Its words are kept for the page: the next query clears
+ * $wpdb->last_error, and logging may run one (WooCommerce reads its settings).
+ */
 function agumail_bulk_read_failed() {
     global $wpdb;
-    if ((string) $wpdb->last_error === '') {
+    $error = (string) $wpdb->last_error;
+    if ($error === '') {
         return false;
     }
-    agumail_log('warning', 'The store data sync could not read the store database: ' . $wpdb->last_error);
+    $GLOBALS['agumail_bulk_read_error'] = $error;
+    agumail_log('warning', 'The store data sync could not read the store database: ' . $error);
     return true;
+}
+
+/** What the database said when the last read failed. */
+function agumail_bulk_last_read_error() {
+    return isset($GLOBALS['agumail_bulk_read_error']) ? (string) $GLOBALS['agumail_bulk_read_error'] : '';
 }
 
 /** Rows from a lookup, or null on a database error. */
@@ -1235,17 +1256,29 @@ function agumail_bulk_ids($phase, $after, $limit, array $state) {
     return array();
 }
 
+/** How many records a phase holds, or null on a database error. */
 function agumail_bulk_count($phase, array $state) {
     if ($phase === 'subscribers' || $phase === 'customers') {
-        return (int) agumail_bulk_user_ids($phase === 'subscribers', $state, 0, 0, true);
+        return agumail_bulk_user_ids($phase === 'subscribers', $state, 0, 0, true);
     }
     if ($phase === 'products') {
-        return (int) agumail_bulk_product_ids(0, 0, true);
+        return agumail_bulk_product_ids(0, 0, true);
     }
     if ($phase === 'checkout_subscribers') {
-        return (int) agumail_bulk_ticked_order_ids($state, 0, 0, true);
+        return agumail_bulk_ticked_order_ids($state, 0, 0, true);
     }
-    return (int) agumail_bulk_order_ids($state, 0, 0, true);
+    return agumail_bulk_order_ids($state, 0, 0, true);
+}
+
+/**
+ * The order range as two query values, for "(%d = 0 OR <date> >= %s)": 0 for
+ * all history, else 1 and where the range starts. MySQL 8 refuses to compare
+ * a date with '' (Incorrect DATETIME value), even behind an OR, so all history
+ * passes a real date that the 0 keeps it from reading.
+ */
+function agumail_bulk_range_args(array $state) {
+    $since = (string) $state['since'];
+    return $since !== '' ? array(1, $since) : array(0, '1970-01-01 00:00:00');
 }
 
 /**
@@ -1334,13 +1367,13 @@ function agumail_bulk_product_ids($after, $limit, $count = false) {
  * and never an unpaid status. HPOS keeps the date in the operational data
  * table; posts keep it in _date_paid, or _paid_date for orders from before
  * WooCommerce 3.0. Both store statuses as wc-processing. An empty range start
- * reads all history.
+ * reads all history (agumail_bulk_range_args()).
  */
 function agumail_bulk_order_ids(array $state, $after, $limit, $count = false) {
     global $wpdb;
     $unpaid = agumail_bulk_unpaid_statuses();
     $paid = agumail_bulk_paid_statuses();
-    $args = array_merge($unpaid, $paid, array((int) $after, (int) $state['max_order_id'], (string) $state['since'], (string) $state['since']));
+    $args = array_merge($unpaid, $paid, array((int) $after, (int) $state['max_order_id']), agumail_bulk_range_args($state));
     $wpdb->last_error = '';
     if (agumail_bulk_hpos()) {
         if ($count) {
@@ -1349,7 +1382,7 @@ function agumail_bulk_order_ids(array $state, $after, $limit, $count = false) {
                 "SELECT COUNT(*) FROM {$wpdb->prefix}wc_orders o LEFT JOIN {$wpdb->prefix}wc_order_operational_data d ON d.order_id = o.id"
                 . " WHERE o.type = 'shop_order' AND o.status NOT IN (" . implode(', ', array_fill(0, count($unpaid), '%s')) . ')'
                 . ' AND (d.date_paid_gmt IS NOT NULL OR o.status IN (' . implode(', ', array_fill(0, count($paid), '%s')) . '))'
-                . " AND o.id > %d AND o.id <= %d AND (%s = '' OR o.date_created_gmt >= %s)",
+                . " AND o.id > %d AND o.id <= %d AND (%d = 0 OR o.date_created_gmt >= %s)",
                 $args
             )));
         }
@@ -1359,7 +1392,7 @@ function agumail_bulk_order_ids(array $state, $after, $limit, $count = false) {
             "SELECT o.id FROM {$wpdb->prefix}wc_orders o LEFT JOIN {$wpdb->prefix}wc_order_operational_data d ON d.order_id = o.id"
             . " WHERE o.type = 'shop_order' AND o.status NOT IN (" . implode(', ', array_fill(0, count($unpaid), '%s')) . ')'
             . ' AND (d.date_paid_gmt IS NOT NULL OR o.status IN (' . implode(', ', array_fill(0, count($paid), '%s')) . '))'
-            . " AND o.id > %d AND o.id <= %d AND (%s = '' OR o.date_created_gmt >= %s) ORDER BY o.id ASC LIMIT %d",
+            . " AND o.id > %d AND o.id <= %d AND (%d = 0 OR o.date_created_gmt >= %s) ORDER BY o.id ASC LIMIT %d",
             $args
         )));
     }
@@ -1372,7 +1405,7 @@ function agumail_bulk_order_ids(array $state, $after, $limit, $count = false) {
             . " WHERE p.post_type = 'shop_order' AND p.post_status NOT IN (" . implode(', ', array_fill(0, count($unpaid), '%s')) . ')'
             . " AND (COALESCE(dp.meta_value, '') NOT IN ('', '0') OR COALESCE(dq.meta_value, '') <> ''"
             . ' OR p.post_status IN (' . implode(', ', array_fill(0, count($paid), '%s')) . '))'
-            . " AND p.ID > %d AND p.ID <= %d AND (%s = '' OR p.post_date_gmt >= %s)",
+            . " AND p.ID > %d AND p.ID <= %d AND (%d = 0 OR p.post_date_gmt >= %s)",
             $args
         )));
     }
@@ -1385,7 +1418,7 @@ function agumail_bulk_order_ids(array $state, $after, $limit, $count = false) {
         . " WHERE p.post_type = 'shop_order' AND p.post_status NOT IN (" . implode(', ', array_fill(0, count($unpaid), '%s')) . ')'
         . " AND (COALESCE(dp.meta_value, '') NOT IN ('', '0') OR COALESCE(dq.meta_value, '') <> ''"
         . ' OR p.post_status IN (' . implode(', ', array_fill(0, count($paid), '%s')) . '))'
-        . " AND p.ID > %d AND p.ID <= %d AND (%s = '' OR p.post_date_gmt >= %s) ORDER BY p.ID ASC LIMIT %d",
+        . " AND p.ID > %d AND p.ID <= %d AND (%d = 0 OR p.post_date_gmt >= %s) ORDER BY p.ID ASC LIMIT %d",
         $args
     )));
 }
@@ -1496,13 +1529,13 @@ function agumail_bulk_buyer_orders(array $emails, array $state) {
     $emails = array_values($emails);
     $unpaid = agumail_bulk_unpaid_statuses();
     $paid = agumail_bulk_paid_statuses();
-    $args = array_merge(array((string) $state['since'], (string) $state['since']), $emails, $unpaid, $paid, array((int) $state['max_order_id']));
+    $args = array_merge(agumail_bulk_range_args($state), $emails, $unpaid, $paid, array((int) $state['max_order_id']));
     $wpdb->last_error = '';
     if (agumail_bulk_hpos()) {
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- the first orders of one page's buyers, read once by a background job.
         $rows = $wpdb->get_results($wpdb->prepare(
             "SELECT LOWER(o.billing_email) AS email, MIN(o.date_created_gmt) AS first_at,"
-            . " MIN(CASE WHEN %s = '' OR o.date_created_gmt >= %s THEN o.id END) AS first_id,"
+            . " MIN(CASE WHEN %d = 0 OR o.date_created_gmt >= %s THEN o.id END) AS first_id,"
             . " MIN(CASE WHEN m.meta_value = 'yes' AND d.created_via IN ('checkout', 'store-api') THEN o.id END) AS optin_id"
             . " FROM {$wpdb->prefix}wc_orders o LEFT JOIN {$wpdb->prefix}wc_order_operational_data d ON d.order_id = o.id"
             . " LEFT JOIN {$wpdb->prefix}wc_orders_meta m ON m.order_id = o.id AND m.meta_key = '_agumail_optin'"
@@ -1516,7 +1549,7 @@ function agumail_bulk_buyer_orders(array $emails, array $state) {
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- the first orders of one page's buyers, read once by a background job.
         $rows = $wpdb->get_results($wpdb->prepare(
             "SELECT LOWER(e.meta_value) AS email, MIN(p.post_date_gmt) AS first_at,"
-            . " MIN(CASE WHEN %s = '' OR p.post_date_gmt >= %s THEN p.ID END) AS first_id,"
+            . " MIN(CASE WHEN %d = 0 OR p.post_date_gmt >= %s THEN p.ID END) AS first_id,"
             . " MIN(CASE WHEN m.meta_value = 'yes' AND v.meta_value IN ('checkout', 'store-api') THEN p.ID END) AS optin_id"
             . " FROM {$wpdb->postmeta} e STRAIGHT_JOIN {$wpdb->posts} p ON p.ID = e.post_id"
             . " LEFT JOIN {$wpdb->postmeta} dp ON dp.post_id = p.ID AND dp.meta_key = '_date_paid'"
@@ -1639,7 +1672,7 @@ function agumail_bulk_datetime($timestamp) {
 function agumail_bulk_render_panel(array $state) {
     echo '<div class="agumail-bulk" data-agumail-bulk data-status="' . esc_attr($state['status']) . '" aria-live="polite">';
     if ($state['status'] === 'running') {
-        echo '<p><strong>' . esc_html__('Syncing store data.', 'agumail') . '</strong> '
+        echo '<p class="agumail-bulk-outcome is-running"><span class="spinner is-active" aria-hidden="true"></span><strong>' . esc_html__('Syncing store data.', 'agumail') . '</strong> '
             /* translators: the date and time the sync started */
             . esc_html(sprintf(__('Started %s. It runs in the background, so you can leave this page.', 'agumail'), agumail_bulk_datetime($state['started_at']))) . '</p>';
         agumail_bulk_render_phases($state);
@@ -1664,17 +1697,23 @@ function agumail_bulk_render_phases(array $state) {
         $at = array_search($phase, $phases, true);
         $done = number_format_i18n($state['done'][$phase]);
         $total = number_format_i18n(max($state['totals'][$phase], $state['done'][$phase]));
+        // The bar under the words; a finished part is full even when it had nothing to send.
+        $bar_max = max(1, $state['totals'][$phase], $state['done'][$phase]);
         if ($current === false || $at < $current) {
             /* translators: 1: records sent, 2: records in this part of the sync */
             $text = sprintf(__('Done: %1$s of %2$s', 'agumail'), $done, $total);
+            $bar = $bar_max;
         } elseif ($at === $current) {
             /* translators: 1: records sent so far, 2: records in this part of the sync */
             $text = sprintf(__('In progress: %1$s of %2$s', 'agumail'), $done, $total);
+            $bar = (int) $state['done'][$phase];
         } else {
             /* translators: records in this part of the sync */
             $text = sprintf(__('Waiting: %s', 'agumail'), $total);
+            $bar = 0;
         }
-        echo '<tr><th scope="row">' . esc_html($label) . '</th> <td>' . esc_html($text) . '</td></tr>';
+        echo '<tr><th scope="row">' . esc_html($label) . '</th> <td>' . esc_html($text)
+            . '<progress class="agumail-progress" max="' . esc_attr((string) $bar_max) . '" value="' . esc_attr((string) $bar) . '" aria-hidden="true"></progress></td></tr>';
     }
     echo '</tbody></table>';
 }
@@ -1706,6 +1745,7 @@ function agumail_bulk_render_wait(array $state) {
 
 function agumail_bulk_render_outcome(array $state) {
     $when = agumail_bulk_datetime($state['finished_at']);
+    $icons = array('done' => 'yes-alt', 'cancelled' => 'dismiss', 'failed' => 'warning');
     if ($state['status'] === 'done') {
         /* translators: the date and time the sync finished */
         $text = sprintf(__('Finished on %s.', 'agumail'), $when);
@@ -1719,7 +1759,8 @@ function agumail_bulk_render_outcome(array $state) {
         $text = '';
     }
     if ($text !== '') {
-        echo '<p><strong>' . esc_html($text) . '</strong></p>';
+        echo '<p class="agumail-bulk-outcome is-' . esc_attr($state['status']) . '"><span class="dashicons dashicons-' . esc_attr($icons[$state['status']]) . '" aria-hidden="true"></span>'
+            . '<strong>' . esc_html($text) . '</strong></p>';
     }
 }
 
@@ -1759,7 +1800,7 @@ function agumail_bulk_render_results(array $state) {
     echo '<ul class="agumail-bulk-results">';
     foreach (agumail_bulk_result_lines($state) as $i => $line) {
         $strong = $state['contacts']['overCapacity'] > 0 && $i === 1;
-        echo '<li>' . ($strong ? '<strong>' . esc_html($line) . '</strong>' : esc_html($line)) . '</li>';
+        echo $strong ? '<li class="is-warning"><strong>' . esc_html($line) . '</strong></li>' : '<li>' . esc_html($line) . '</li>';
     }
     echo '</ul>';
 }
@@ -1774,9 +1815,9 @@ function agumail_bulk_render_start(array $state) {
         echo '<input type="hidden" name="agumail_bulk_resume" value="1" />';
         echo '<p><button type="submit" class="button button-primary">' . esc_html__('Try again', 'agumail') . '</button></p></form>';
     }
-    echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '">';
+    echo '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" class="agumail-bulk-start">';
     agumail_admin_action_fields('bulk_sync_start');
-    echo '<p><label for="agumail_bulk_months">' . esc_html__('Orders to include', 'agumail') . '</label> ';
+    echo '<label for="agumail_bulk_months">' . esc_html__('Orders to include', 'agumail') . '</label> ';
     echo '<select name="agumail_bulk_months" id="agumail_bulk_months">';
     $choices = array(
         0  => __('All order history', 'agumail'),
@@ -1788,9 +1829,9 @@ function agumail_bulk_render_start(array $state) {
     foreach ($choices as $months => $label) {
         echo '<option value="' . esc_attr((string) $months) . '"' . selected((int) $state['months'], $months, false) . '>' . esc_html($label) . '</option>';
     }
-    echo '</select></p>';
+    echo '</select> ';
     $label = $state['status'] === 'idle' ? __('Sync store data', 'agumail') : ($state['status'] === 'failed' ? __('Start over', 'agumail') : __('Sync again', 'agumail'));
-    echo '<p><button type="submit" class="button' . ($state['status'] === 'failed' ? '' : ' button-primary') . '">' . esc_html($label) . '</button></p>';
+    echo '<button type="submit" class="button' . ($state['status'] === 'failed' ? '' : ' button-primary') . '">' . esc_html($label) . '</button>';
     echo '</form>';
 }
 

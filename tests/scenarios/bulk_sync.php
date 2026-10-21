@@ -802,10 +802,48 @@ function test_bulk_sync_admin_js_stops_on_403_and_says_to_reload($plugin_dir) {
 
 function test_bulk_sync_will_not_start_when_the_database_does_not_answer() {
     bulk_sync_store();
-    $GLOBALS['agm']['p4_db_errors'] = array('/^SELECT MAX\(/' => 1);
+    // Where the store ends, and how many paid orders there are: a count it refuses is not 0.
+    foreach (array('/^SELECT MAX\(/', '/^SELECT COUNT\(\*\) FROM wp_posts p LEFT JOIN/') as $pattern) {
+        $GLOBALS['agm']['p4_db_errors'] = array($pattern => 1);
+        bulk_sync_start();
+        expect_same('idle', agumail_bulk_state()['status'], "a sync started after the database refused $pattern");
+        expect_same(array(), agm_scheduled('agumail_bulk_step'), 'a refused start scheduled a step');
+    }
+}
+
+function test_bulk_sync_reads_all_history_on_a_database_that_refuses_to_compare_a_date_with_nothing() {
+    global $wpdb;
+    // MySQL 8 answers "Incorrect DATETIME value: ''" (the P4 fake does too): one customer, all history, as on a small store.
+    agm_p4_user(12, 'max@example.com', array('user_registered' => '2022-03-03 08:00:00'));
+    agm_p4_order(102, 'max@example.com', '2025-02-02 10:00:00', 'processing', array('customer_id' => 12));
+    agm_p4_order(110, 'guest@example.com', '2025-02-03 10:00:00', 'completed');
+    foreach (array(false, true) as $hpos) {
+        $GLOBALS['agm']['hpos'] = $hpos;
+        $GLOBALS['agm']['http'] = array();
+        delete_option('agumail_bulk_state');
+        bulk_sync_forget_synced();
+        $state = bulk_sync_run();
+        $label = $hpos ? ' (HPOS)' : ' (posts)';
+        expect_same('done', $state['status'], "the sync did not finish$label: " . $state['error']);
+        expect_same(2, $state['totals']['orders'], "the paid orders were not counted$label");
+        expect_same(array('102', '110'), array_column(agm_sent_records('/api/v1/orders', 'orders'), 'externalId'), "the orders were not sent$label");
+        expect_same(array(), agm_logs('could not read the store database'), "a read failed$label");
+    }
+    expect_same(array(), $wpdb->statements("/_gmt\\s*>=\\s*''/"), 'a query compared a date with an empty string');
+}
+
+function test_bulk_sync_the_wait_says_what_the_database_said() {
+    // One customer: their opt-in lookup fails, and the next lookup and the log would each clear $wpdb->last_error.
+    agm_p4_user(12, 'max@example.com', array('user_registered' => '2022-03-03 08:00:00'));
+    bulk_sync_clock();
     bulk_sync_start();
-    expect_same('idle', agumail_bulk_state()['status'], 'a sync started without knowing where the store ends');
-    expect_same(array(), agm_scheduled('agumail_bulk_step'), 'a refused start scheduled a step');
+    $GLOBALS['agm']['p4_db_errors'] = array('/ AS user_id, MIN\(/' => 1);
+    agm_p4_run_bulk(1);
+    $state = agumail_bulk_state();
+    expect_same('customers', $state['phase'], 'the failure was not in the customers phase');
+    expect_that(strpos($state['error'], 'Lost connection to MySQL server during query') !== false, "the wait lost the database's own words: " . $state['error']);
+    $text = bulk_sync_text(agumail_bulk_progress()['html']);
+    expect_that(strpos($text, '(the store database did not answer: Lost connection to MySQL server during query)') !== false, 'the page does not show the database error: ' . $text);
 }
 
 // ── Cross-cutting review ──

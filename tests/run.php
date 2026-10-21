@@ -2,9 +2,9 @@
 // Runs the plugin's scenarios, each test in a fresh PHP process so no hook,
 // option or queued row leaks from one store into the next.
 //
-//   php wordpress-plugin/tests/run.php            every scenario file
-//   php wordpress-plugin/tests/run.php drain      files whose name contains "drain"
-//   php wordpress-plugin/tests/run.php drain lock ...and tests whose name contains "lock"
+//   php tests/run.php            every scenario file
+//   php tests/run.php drain      files whose name contains "drain"
+//   php tests/run.php drain lock ...and tests whose name contains "lock"
 //
 // AGUMAIL_PLUGIN_DIR points it at another copy of the plugin folder.
 //
@@ -12,7 +12,7 @@
 // folder. A test passes when it returns normally, so code that exits halfway
 // through a test is reported as a failure.
 
-$plugin_dir = getenv('AGUMAIL_PLUGIN_DIR') ?: dirname(__DIR__) . '/agumail';
+$plugin_dir = getenv('AGUMAIL_PLUGIN_DIR') ?: dirname(__DIR__) . '/agumail-for-woocommerce';
 $scenarios  = __DIR__ . '/scenarios';
 
 if ($argc > 3 && $argv[1] === '--child') {

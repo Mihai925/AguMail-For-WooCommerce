@@ -3,7 +3,7 @@
  * Plugin Name:          AguMail for WooCommerce
  * Plugin URI:           https://agumail.com
  * Description:          Syncs your WooCommerce customers, orders, carts and products to AguMail: email marketing with abandoned-cart recovery and revenue attribution.
- * Version:              2.1.1
+ * Version:              1.0.0-dev
  * Author:               AguMail
  * License:              GPLv2 or later
  * License URI:          https://www.gnu.org/licenses/gpl-2.0.html
@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('AGUMAIL_VERSION', '2.1.1');
+define('AGUMAIL_VERSION', '1.0.0-dev');
 define('AGUMAIL_FILE', __FILE__);
 define('AGUMAIL_DIR', __DIR__ . '/');
 
