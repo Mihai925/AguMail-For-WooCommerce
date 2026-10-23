@@ -200,18 +200,29 @@ function test_onboarding_an_activation_from_admin_ajax_is_not_redirected() {
     expect_same(false, onboarding_armed_for(), 'an admin-ajax activation was armed, so a later page would jump to AguMail');
 }
 
-function test_onboarding_without_woocommerce_nothing_points_at_the_settings_page() {
-    // The settings page hangs off WooCommerce's menu: without it, WordPress refuses to open it.
+function test_onboarding_without_woocommerce_an_administrator_is_onboarded_the_same_way() {
+    // The page is AguMail's own menu item, so it opens on any site, for whoever runs it.
     onboarding_not_connected();
-    onboarding_sign_in(1);
-    onboarding_activate();
     onboarding_without_woocommerce();
-    expect_same(null, onboarding_redirect_of(onboarding_open()), 'the merchant was sent to a settings page that cannot open');
-    expect_same(false, onboarding_armed_for(), 'the mark stayed after the page it was for');
-    expect_same('', onboarding_notice_on('plugins'), 'the connect notice showed without WooCommerce');
+    agm_sign_in(1, 'admin1@site.test');
+    agm_grant('manage_options');
+    onboarding_activate();
+    expect_same(ONBOARDING_SETTINGS_URL, onboarding_redirect_of(onboarding_open()), 'activating did not lead the administrator to the AguMail page');
+    $notice = onboarding_notice_on('plugins');
+    expect_that(strpos($notice, 'Grow your email list with AguMail') !== false, 'no notice on a site without WooCommerce');
+    expect_that(strpos($notice, 'href="' . ONBOARDING_SETTINGS_URL . '"') !== false, 'the notice does not lead to the AguMail page');
+    expect_that(strpos($notice, 'agumail_action=connect_start') === false, 'the notice offers the one-click connect, which is a store\'s');
+    expect_that(strpos($notice, 'https://agumail.com/signup?utm_source=wordpress&amp;utm_medium=plugin&amp;utm_campaign=notice') !== false,
+        'the notice does not offer a free account');
+    expect_same('', onboarding_notice_on('woocommerce_page_wc-settings'), 'a notice on a WooCommerce screen of a site without it');
     $theirs = array('deactivate' => '<a href="plugins.php?action=deactivate">Deactivate</a>');
-    expect_same($theirs, apply_filters('plugin_action_links_' . plugin_basename(AGUMAIL_FILE), $theirs, plugin_basename(AGUMAIL_FILE), array(), 'all'),
-        'the Plugins row linked to a settings page that cannot open');
+    $links = apply_filters('plugin_action_links_' . plugin_basename(AGUMAIL_FILE), $theirs, plugin_basename(AGUMAIL_FILE), array(), 'all');
+    expect_same('<a href="' . ONBOARDING_SETTINGS_URL . '">Connect</a>', $links[0], 'the Plugins row does not lead with Connect');
+
+    // A shop manager left over from WooCommerce does not run the site.
+    agm_grant('manage_options', false);
+    agm_grant('manage_woocommerce');
+    expect_same('', onboarding_notice_on('plugins'), 'a shop manager saw the notice without WooCommerce');
 }
 
 function test_onboarding_activation_without_a_signed_in_user_is_not_redirected() {
@@ -248,7 +259,7 @@ function test_onboarding_the_notice_shows_on_the_dashboard_plugins_and_woocommer
     foreach (array('dashboard', 'plugins', 'woocommerce_page_wc-settings', 'woocommerce_page_wc-orders', 'edit-product') as $screen) {
         expect_that(strpos(onboarding_notice_on($screen), 'Connect AguMail to start syncing your customers, orders and carts.') !== false, "no connect notice on $screen");
     }
-    foreach (array('woocommerce_page_agumail', 'edit-post', 'options-general', null) as $screen) {
+    foreach (array('toplevel_page_agumail', 'edit-post', 'options-general', null) as $screen) {
         expect_same('', onboarding_notice_on($screen), 'a connect notice on ' . var_export($screen, true));
     }
     expect_same(array(), agm_writes(), 'showing the notice wrote something');
@@ -307,4 +318,37 @@ function test_onboarding_dismissing_needs_the_nonce_and_the_capability() {
     $unprivileged = onboarding_follow($dismiss);
     expect_that(strpos((string) $unprivileged['halt'], 'wp_die') === 0, 'a dismiss by a user who cannot manage the store was not refused');
     expect_same(false, get_option('agumail_connect_notice_dismissed'), 'a refused dismiss was remembered');
+}
+
+// ── Store sync and the plan ──
+
+function test_onboarding_a_store_hears_once_when_its_plan_holds_or_offers_store_sync() {
+    onboarding_sign_in(1);
+    update_option(AGUMAIL_STORE_HOLD_OPTION, time());
+    update_option('agumail_store_notice', 'held');
+    $notice = onboarding_notice_on('dashboard');
+    expect_that(strpos($notice, 'AguMail paused store sync: your plan does not include it.') !== false, 'a held store is not told: ' . $notice);
+    expect_that(strpos($notice, 'https://agumail.com/pricing?') !== false, 'the notice does not lead to the plans');
+    expect_same('', onboarding_notice_on('toplevel_page_agumail'), 'the notice repeats what the AguMail page says');
+
+    // The store sync came back meanwhile: a held notice has nothing to say.
+    delete_option(AGUMAIL_STORE_HOLD_OPTION);
+    expect_same('', onboarding_notice_on('dashboard'), 'a held notice outlived the hold');
+
+    update_option('agumail_connection', array('status' => 'connected', 'platform' => 'wordpress'));
+    update_option('agumail_store_notice', 'offer');
+    $notice = onboarding_notice_on('plugins');
+    expect_that(strpos($notice, 'AguMail can sync your store too.') !== false, 'a site that gained WooCommerce is not told: ' . $notice);
+    expect_that(strpos($notice, 'https://agumail.com/pricing?') !== false, 'the offer does not lead to the plans');
+
+    update_option('agumail_store_notice', 'available');
+    $notice = onboarding_notice_on('plugins');
+    expect_that(strpos($notice, 'agumail_action=connect_store') !== false, 'Sync your store is not offered: ' . $notice);
+
+    agm_request('dismiss', 'admin', function () {
+        agm_input(array('action' => 'agumail', 'agumail_action' => 'dismiss_store_notice', '_wpnonce' => agumail_admin_nonce('dismiss_store_notice')));
+        do_action('init');
+        do_action('admin_post_agumail');
+    });
+    expect_same('', onboarding_notice_on('plugins'), 'the notice came back after Dismiss');
 }

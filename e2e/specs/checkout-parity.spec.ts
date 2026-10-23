@@ -7,7 +7,7 @@ import { readSite, SITE_URL } from '../helpers/env';
 import { setCheckout, wp, wpEval } from '../helpers/wp';
 
 // The checkout box, level with Mailchimp for WooCommerce:
-//   - "Tick the box by default" (WooCommerce > AguMail > Checkout): the box starts ticked on the classic and block
+//   - "Tick the box by default" (AguMail > Checkout): the box starts ticked on the classic and block
 //     checkouts, and an order placed without touching it carries the tick and records yes; a box the shopper unticks
 //     stays unticked and records no; a signed-in customer who said no starts unticked;
 //   - a link in the label shows on the classic checkout; the block checkout, which shows its label as text, gets the

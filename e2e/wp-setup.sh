@@ -7,6 +7,8 @@
 #   ./wp-setup.sh seed [count]       1,200 (default) shoppers with paid orders over ~2 years
 #   ./wp-setup.sh checkout classic|block|checkoutwc
 #   ./wp-setup.sh plugin none|v1|v2  which AguMail plugin is active (v2 = agumail-for-woocommerce)
+#   ./wp-setup.sh woo on|off         WooCommerce on, or off for a plain WordPress site (CheckoutWC,
+#                                    which needs it, goes off with it)
 #   ./wp-setup.sh connect [apiUrl]   give the active plugin an API key and point it at apiUrl
 #                                    (default http://fake-agumail:8090)
 #   ./wp-setup.sh cron on|off        real WP-Cron + Action Scheduler async runner (default off)
@@ -133,6 +135,14 @@ cmd_plugin() {
   esac
 }
 
+cmd_woo() {
+  case "${1:-}" in
+    on) wp plugin activate woocommerce --quiet ;;
+    off) wp plugin deactivate checkout-for-woocommerce woocommerce --quiet 2>/dev/null || true ;;
+    *) echo "Usage: $0 woo on|off" >&2; exit 1 ;;
+  esac
+}
+
 cmd_connect() {
   local url="${1:-http://fake-agumail:8090}"
   state_dirs
@@ -197,6 +207,7 @@ case "${1:-setup}" in
   seed) shift; cmd_seed "$@" ;;
   checkout) shift; cmd_checkout "$@" ;;
   plugin) shift; cmd_plugin "$@" ;;
+  woo) shift; cmd_woo "$@" ;;
   connect) shift; cmd_connect "$@" ;;
   cron) shift; cmd_cron "$@" ;;
   queue) wp action-scheduler run --group=agumail ;;

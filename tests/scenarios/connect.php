@@ -121,6 +121,10 @@ function test_connect_the_page_offers_one_click_connect_and_a_collapsed_advanced
     expect_that(preg_match('/<details[^>]*\bopen\b/', $html) === 0, 'Advanced should start collapsed');
     expect_that(strpos($html, 'Disconnect') === false, 'a store that never connected is offered Disconnect');
     expect_that(strpos($html, '—') === false, 'UI copy carries an em-dash');
+    // Somebody who found the plugin first starts a free account, set up for a store.
+    expect_that(strpos($html, 'Create your free AguMail account') !== false, 'no free account offered');
+    expect_that(strpos($html, 'https://agumail.com/signup?for=store&amp;utm_source=wordpress&amp;utm_medium=plugin&amp;utm_campaign=connect-welcome') !== false,
+        'the free account is not a store\'s: ' . $html);
 }
 
 // ── One-click connect: the start ──
@@ -375,6 +379,49 @@ function test_connect_advanced_save_shows_refusals_and_keeps_the_working_key() {
     }
 }
 
+function test_connect_a_key_on_a_plan_without_store_sync_connects_the_store_for_forms_and_signups() {
+    connect_merchant();
+    agm_http_respond(402, array('ok' => false, 'error' => 'Connecting a store, and sending its orders, carts and products, is on the Commerce plans. Contacts, signups and events work on every plan.',
+        'code' => 'PLAN_FEATURE', 'feature' => 'storeSync'));
+    agm_http_respond(200, connect_ping_body(null));
+    agm_http_respond(200, connect_forms_body());
+    $result = connect_admin_action('connect_save_advanced', array('agumail_api_key' => 'agm_' . str_repeat('c', 40)));
+    expect_same(array('POST /api/v1/connect', 'GET /api/v1/ping', 'GET /api/v1/forms'), connect_paths($result['http']), 'the key was not checked with ping after the store was refused');
+    expect_same(null, $result['http'][1]['query'], 'ping asked about a store AguMail did not take');
+    expect_same('agm_' . str_repeat('c', 40), agumail_api_key(), 'the key was not kept');
+    expect_same('wordpress', agumail_connection_platform(), 'the store did not connect for forms and signups');
+    expect_same('connected', agumail_connection()['status'], 'not connected');
+    expect_that(!agumail_store_sync_on(), 'store sync is on without the plan for it');
+    expect_same(false, agumail_store_sync_availability()['available'], 'the plan AguMail just named was not remembered');
+    $notice = connect_notice();
+    expect_same('success', $notice['type'], 'the forms-only connect was not a success');
+    expect_that(strpos($notice['message'], 'Orders, carts and products sync on AguMail\'s Commerce plans') !== false, 'the plan was not explained: ' . $notice['message']);
+
+    // Its later pings ask about no store, and leave it connected.
+    agm_http_respond(200, connect_ping_body(null));
+    agm_request('ping', 'cron', function () { agumail_run_in_background('agumail_connect_ping'); });
+    expect_same('connected', agumail_connection()['status'], 'a store connected by key read as disconnected');
+}
+
+function test_connect_a_store_limit_still_refuses_the_key() {
+    connect_merchant();
+    agm_http_respond(402, array('ok' => false, 'error' => 'Your plan connects 1 store. Disconnect the other one in AguMail, or move to Commerce Pro to run two.',
+        'code' => 'PLAN_LIMIT', 'feature' => 'maxIntegrations', 'limit' => 1));
+    $result = connect_admin_action('connect_save_advanced', array('agumail_api_key' => 'agm_' . str_repeat('c', 40)));
+    expect_same(array('POST /api/v1/connect'), connect_paths($result['http']), 'a store over its limit was connected another way');
+    expect_that(!agumail_has_api_key(), 'the refused key was kept');
+    expect_same('error', connect_notice()['type'], 'the limit was not shown as an error');
+}
+
+function test_connect_a_store_connection_from_before_platforms_pings_about_its_store() {
+    connect_merchant(true);
+    update_option('agumail_connection', array('status' => 'connected', 'shopName' => 'Hollow Pine', 'userId' => 'usr_1'));
+    expect_same('woocommerce', agumail_connection_platform(), 'a connection from before platforms is not a store\'s');
+    agm_http_respond(200, connect_ping_body());
+    $result = agm_request('ping', 'cron', function () { agumail_run_in_background('agumail_connect_ping'); });
+    expect_same('platform=woocommerce', $result['http'][0]['query'], 'the store\'s ping changed');
+}
+
 function test_connect_advanced_save_keeps_the_saved_key_when_the_field_is_left_empty() {
     connect_merchant(true);
     agm_http_respond(200, array('ok' => true, 'integrationId' => 'int_1', 'userId' => 'usr_1', 'shopName' => 'Hollow Pine', 'config' => connect_config()));
@@ -427,8 +474,11 @@ function test_connect_disconnect_from_this_site_clears_the_key_and_config_locall
     update_option('agumail_config', connect_config());
     agumail_update_connection(array('status' => 'connected', 'shopName' => 'Hollow Pine'));
     update_option('agumail_connected_at', time());
+    update_option(AGUMAIL_STORE_HOLD_OPTION, time());
+    update_option('agumail_store_notice', 'held');
     $result = connect_admin_action('connect_disconnect');
     expect_same(array(), $result['http'], 'disconnecting from this site called AguMail');
+    expect_that(!agumail_store_sync_held() && get_option('agumail_store_notice') === false, 'the plan\'s store sync state outlived the connection');
     expect_same('', agumail_api_key(), 'the key was kept');
     expect_same(array(), agumail_config(), 'the config was kept');
     expect_same('', agumail_connection()['status'], 'the connection was kept');

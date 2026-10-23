@@ -5,7 +5,7 @@ import { E2E_API_KEY, FAKE_URL, SITE_URL } from '../helpers/env';
 import { fakeControl, fakeRequests, fakeState } from '../helpers/fake';
 import { wpEval } from '../helpers/wp';
 
-// Connecting the store, as a merchant does it from WooCommerce > AguMail:
+// Connecting the store, as a merchant does it from the AguMail page:
 //   - one click: "Connect to AguMail" goes to AguMail's approval page (the fake app), which sends the
 //     merchant back with a code; the plugin trades it (with its PKCE verifier) for an API key;
 //   - Cancel on the approval page comes back with error=access_denied and connects nothing;

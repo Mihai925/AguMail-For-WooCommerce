@@ -118,7 +118,7 @@ function test_builders_elementor_an_unconnected_store_shows_an_alert() {
     agm_elementor_action()->register_settings_section($widget);
     $alert = $widget->controls['agumail_not_connected'];
     expect_same('alert', $alert['type'], 'the not-connected message is not an alert');
-    expect_same('Connect this store to AguMail under WooCommerce &gt; AguMail. Until then, signups from this form are not sent.', $alert['content'], 'wrong alert');
+    expect_same('Connect this site to AguMail first, on the AguMail page in your admin menu. Until then, signups from this form are not sent.', $alert['content'], 'wrong alert');
 }
 
 function test_builders_elementor_older_than_3_19_gets_the_not_connected_notice_without_the_alert_control() {
@@ -133,7 +133,7 @@ function builders_child_elementor_without_the_alert_control() {
     agm_elementor_action()->register_settings_section($widget);
     $notice = $widget->controls['agumail_not_connected'];
     expect_same('raw_html', $notice['type'], 'the notice is not raw HTML');
-    expect_same('Connect this store to AguMail under WooCommerce &gt; AguMail. Until then, signups from this form are not sent.', $notice['raw'], 'wrong notice');
+    expect_same('Connect this site to AguMail first, on the AguMail page in your admin menu. Until then, signups from this form are not sent.', $notice['raw'], 'wrong notice');
     expect_same('elementor-panel-alert elementor-panel-alert-warning', $notice['content_classes'], 'the notice is not styled as a warning');
 }
 
@@ -376,7 +376,7 @@ function test_builders_cf7_a_new_form_starts_with_double_opt_in_off_and_says_whe
     });
     expect_that(preg_match('/name="agumail-signup\[double_opt_in\]"[^>]*checked/', $html) === 0, 'double opt-in should start off');
     expect_that(preg_match('/name="agumail-signup\[enabled\]"[^>]*checked/', $html) === 0, 'a new form should start off');
-    expect_that(strpos($html, 'Connect this store to AguMail under WooCommerce &gt; AguMail. Until then, signups from this form are not sent.') !== false, 'an unconnected store is not told');
+    expect_that(strpos($html, 'Connect this site to AguMail first, on the AguMail page in your admin menu. Until then, signups from this form are not sent.') !== false, 'an unconnected site is not told');
 }
 
 function test_builders_cf7_the_tab_saves_as_a_form_property_only_when_it_was_posted() {

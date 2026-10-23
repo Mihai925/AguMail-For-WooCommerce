@@ -50,10 +50,12 @@ function test_consent_declares_hpos_and_block_checkout_support() {
 
 function test_consent_the_plugin_header_names_the_versions_it_needs($plugin_dir) {
     $header = file_get_contents($plugin_dir . '/agumail.php', false, null, 0, 2048);
-    foreach (array('Version:              1.0.0-dev', 'Requires PHP:         7.4', 'Requires Plugins:     woocommerce',
-        'WC requires at least: 8.0', 'WC tested up to:      11.1') as $line) {
+    foreach (array('Plugin Name:          AguMail: Email Marketing Made Easy', 'Version:              1.0.0-dev', 'Requires at least:    6.5',
+        'Requires PHP:         7.4', 'WC requires at least: 8.0', 'WC tested up to:      11.1') as $line) {
         expect_that(strpos($header, $line) !== false, 'the plugin header is missing "' . $line . '"');
     }
+    // It runs on any WordPress site, so WordPress must not hold it back without WooCommerce.
+    expect_that(strpos($header, 'Requires Plugins') === false, 'the plugin header still requires WooCommerce');
     expect_same('1.0.0-dev', AGUMAIL_VERSION, 'wrong AGUMAIL_VERSION');
 }
 

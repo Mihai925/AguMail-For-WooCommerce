@@ -5,7 +5,7 @@ import { placeGuestOrder } from '../helpers/checkout';
 import { fakeControl, fakeMode } from '../helpers/fake';
 import { outboxDueNow, runQueue, wpEval } from '../helpers/wp';
 
-// The Status section of WooCommerce > AguMail: the connection, what is waiting in the queue and how
+// The Status section of the AguMail page: the connection, what is waiting in the queue and how
 // old it is, a pause AguMail asked for, and the items AguMail refused, with Retry and Discard.
 
 test.describe.configure({ mode: 'serial' });

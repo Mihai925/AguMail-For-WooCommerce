@@ -37,7 +37,7 @@ export async function adminContext(browser: Browser): Promise<BrowserContext> {
   return context;
 }
 
-/** Opens WooCommerce > AguMail. */
+/** Opens the AguMail page. */
 export async function openSettings(page: Page, query = ''): Promise<void> {
   await page.goto(SETTINGS_URL + query);
   await expect(page.locator('.agumail-settings h1')).toHaveText('AguMail');

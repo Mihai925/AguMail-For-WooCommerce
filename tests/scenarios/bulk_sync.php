@@ -503,6 +503,32 @@ function test_bulk_sync_a_refused_plan_waits_and_says_why() {
     expect_that(strpos(bulk_sync_text(agm_p4_section('sync')), 'Your plan does not include store sync.') !== false, 'the stopped sync does not say why');
 }
 
+function test_bulk_sync_a_plan_without_store_sync_stops_it_and_holds_store_data_only() {
+    bulk_sync_store();
+    bulk_sync_clock();
+    bulk_sync_start();
+    // AguMail takes the contacts on every plan, and refuses products and orders without store sync.
+    agm_http_default(function ($url) {
+        $path = parse_url($url, PHP_URL_PATH);
+        if (in_array($path, array('/api/v1/products', '/api/v1/orders'), true)) {
+            return array('code' => 402, 'body' => array('ok' => false, 'error' => 'Connecting a store, and sending its orders, carts and products, is on the Commerce plans. Contacts, signups and events work on every plan.',
+                'code' => 'PLAN_FEATURE', 'feature' => 'storeSync'));
+        }
+        return array('code' => 200, 'body' => array('ok' => true));
+    });
+    for ($i = 1; $i <= 20 && agumail_bulk_state()['status'] === 'running'; $i++) {
+        $GLOBALS['bulk_sync_now'] += 16 * MINUTE_IN_SECONDS;
+        agm_request('bulk step ' . $i, 'cron', function () { agm_run_actions('agumail_bulk_step'); });
+    }
+    $state = agumail_bulk_state();
+    expect_same('failed', $state['status'], 'the sync did not stop for a plan without store sync');
+    expect_that(agumail_store_sync_held(), 'store data was not held');
+    expect_that(agumail_connection()['status'] !== 'error', 'a plan without store sync read as a refused store');
+    expect_same(0, agumail_backoff_until(), 'everything was paused, signups included');
+    expect_same(1, count(array_filter(agm_http_requests(), function ($request) { return $request['path'] === '/api/v1/products'; })),
+        'the sync kept asking for store data the plan does not take');
+}
+
 // ── Range and bound ──
 
 function test_bulk_sync_sends_all_history_by_default_or_the_last_months_asked() {
@@ -595,7 +621,7 @@ function test_bulk_sync_progress_is_polled_through_admin_ajax() {
     bulk_sync_store();
     bulk_sync_start();
     agm_request('settings page', 'admin', function () {
-        do_action('admin_enqueue_scripts', 'woocommerce_page_agumail');
+        do_action('admin_enqueue_scripts', 'toplevel_page_agumail');
     });
     $script = agm_script('agumail-admin');
     expect_that($script && $script['enqueued'], 'admin.js is not loaded on the settings page');
@@ -792,7 +818,7 @@ function test_bulk_sync_looks_buyers_up_from_postmeta_on_posts_storage() {
 function test_bulk_sync_admin_js_stops_on_403_and_says_to_reload($plugin_dir) {
     agm_p4_merchant();
     agm_request('settings page', 'admin', function () {
-        do_action('admin_enqueue_scripts', 'woocommerce_page_agumail');
+        do_action('admin_enqueue_scripts', 'toplevel_page_agumail');
     });
     $data = agm_script('agumail-admin')['data']['agumailAdmin'];
     expect_same('Reload this page to see progress.', isset($data['reload']) ? $data['reload'] : null, 'admin.js has no words for a lost session');

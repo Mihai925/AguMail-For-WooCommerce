@@ -371,13 +371,30 @@ function delete_user_meta($id, $key, $value = '') {
     agm_record_write('user_meta', $key, 'delete');
     return true;
 }
-/** Any user's capability: $GLOBALS['agm']['user_caps'][id][cap], else, for the signed-in user, current_user_can(). */
+/**
+ * Any user's capability: $GLOBALS['agm']['user_caps'][id][cap], else, for the
+ * signed-in user, current_user_can(). As in WordPress, map_meta_cap turns a
+ * capability into the ones the user must hold.
+ */
 function user_can($user, $cap, ...$args) {
     $id = is_object($user) ? (int) $user->ID : (int) $user;
-    if (isset($GLOBALS['agm']['user_caps'][$id][$cap])) {
-        return (bool) $GLOBALS['agm']['user_caps'][$id][$cap];
+    foreach (agm_map_meta_cap($cap, $id, $args) as $required) {
+        if (isset($GLOBALS['agm']['user_caps'][$id][$required])) {
+            if (!$GLOBALS['agm']['user_caps'][$id][$required]) {
+                return false;
+            }
+            continue;
+        }
+        if (!($id > 0 && $id === get_current_user_id() && agm_holds_cap($required))) {
+            return false;
+        }
     }
-    return $id > 0 && $id === get_current_user_id() ? current_user_can($cap) : false;
+    return true;
+}
+/** The primitive capabilities $cap takes, through the map_meta_cap filter. */
+function agm_map_meta_cap($cap, $user_id, array $args = array()) {
+    $caps = apply_filters('map_meta_cap', array($cap), $cap, $user_id, $args);
+    return is_array($caps) && $caps ? $caps : array($cap);
 }
 /** Records the post meta key removed from every post. */
 function delete_post_meta_by_key($key) {
@@ -403,6 +420,15 @@ function delete_metadata($type, $object_id, $key, $value = '', $delete_all = fal
     return $deleted;
 }
 function current_user_can($cap, ...$args) {
+    foreach (agm_map_meta_cap($cap, get_current_user_id(), $args) as $required) {
+        if (!agm_holds_cap($required)) {
+            return false;
+        }
+    }
+    return true;
+}
+/** Whether the signed-in user was granted a primitive capability (agm_grant()). */
+function agm_holds_cap($cap) {
     return isset($GLOBALS['agm']['caps'][$cap]) ? (bool) $GLOBALS['agm']['caps'][$cap] : false;
 }
 function agm_grant($cap, $granted = true) { $GLOBALS['agm']['caps'][$cap] = $granted; }
@@ -680,7 +706,7 @@ function _http_build_query($data, $prefix = null, $sep = null, $key = '', $urlen
 
 // ── Admin screens ──
 
-function add_menu_page(...$args) { $GLOBALS['agm']['menus'][] = $args; return 'toplevel'; }
+function add_menu_page(...$args) { $GLOBALS['agm']['menus'][] = $args; return 'toplevel_page_' . $args[3]; }
 function add_submenu_page(...$args) { $GLOBALS['agm']['menus'][] = $args; return 'woocommerce_page_' . $args[4]; }
 function register_setting($group, $name, $args = array()) {}
 function settings_fields($group) {}

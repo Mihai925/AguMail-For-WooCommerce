@@ -132,6 +132,17 @@ class Agm_Fake_Store {
         }
         return $count;
     }
+    public function discard_pending(array $types, $before = null) {
+        $count = 0;
+        foreach ($this->outbox as $id => $row) {
+            if ($row['status'] === 'pending' && in_array($row['type'], $types, true) && ($before === null || $row['updated_at'] < $before)) {
+                unset($this->outbox[$id]);
+                agm_record_write('outbox', (string) $id, 'discard');
+                $count++;
+            }
+        }
+        return $count;
+    }
     public function clear() {
         $count = count($this->outbox);
         $this->outbox = array();
@@ -228,6 +239,19 @@ class Agm_Fake_Store {
     public function carts_dirty($limit) {
         $rows = array_values(array_filter($this->carts, function ($row) { return $row['dirty'] === 1; }));
         return array_map('agumail_cart_row_types', array_slice($rows, 0, $limit));
+    }
+    public function carts_clear_dirty() {
+        $count = 0;
+        foreach ($this->carts as $id => $row) {
+            if ($row['dirty'] === 1) {
+                $this->carts[$id]['dirty'] = 0;
+                $count++;
+            }
+        }
+        if ($count) {
+            agm_record_write('carts', '*', 'clean');
+        }
+        return $count;
     }
     public function cart_mark_queued($id, $version) {
         if (!isset($this->carts[$id]) || $this->carts[$id]['queued_version'] >= $version) {

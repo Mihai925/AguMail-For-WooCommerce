@@ -253,8 +253,8 @@ test('the WPForms AguMail section saves', async ({ browser }) => {
     await page.locator('#wpforms-save').click();
     await expect(page.locator('#wpforms-save')).not.toHaveClass(/wpforms-save-in-progress|disabled/, { timeout: 30_000 });
     await expect
-      .poll(async () => JSON.parse(lastLine(await wpEval(`$f = get_post(${id}); $d = json_decode($f->post_content, true); echo wp_json_encode(array_intersect_key($d['settings'], array_flip(array('agumail_enable', 'agumail_tags', 'agumail_double_opt_in', 'agumail_saved', 'agumail_field_email', 'agumail_field_consent'))));`))))
-      .toEqual({ agumail_enable: '1', agumail_tags: 'news, e2e, saved', agumail_saved: '1', agumail_field_email: '2', agumail_field_consent: '3' });
+      .poll(async () => JSON.parse(lastLine(await wpEval(`$f = get_post(${id}); $d = json_decode($f->post_content, true); echo wp_json_encode(array_intersect_key($d['settings'], array_flip(array('agumail_enable', 'agumail_tags', 'agumail_double_opt_in', 'agumail_field_email', 'agumail_field_consent'))));`))))
+      .toEqual({ agumail_enable: '1', agumail_tags: 'news, e2e, saved', agumail_field_email: '2', agumail_field_consent: '3' });
   } finally {
     await admin.close();
     await reseedBuilders();

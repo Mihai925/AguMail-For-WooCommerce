@@ -6,7 +6,7 @@ import { fakeControl } from '../helpers/fake';
 import { wp, wpEval } from '../helpers/wp';
 
 // From activating the plugin to a connected store, as a merchant meets it:
-//   - activating AguMail from the Plugins screen lands on WooCommerce > AguMail, once;
+//   - activating AguMail from the Plugins screen lands on the AguMail page, once;
 //   - until the store is connected, the Plugins row leads with Connect, and a notice on the Dashboard, the Plugins
 //     screen and WooCommerce's screens offers "Connect to AguMail", which starts the one-click connect;
 //   - once connected, the row leads with Settings and the notice is gone; Dismiss hides it for good.

@@ -283,10 +283,17 @@ function test_http_guard_the_settings_page_lists_sections_in_order_with_a_connec
     expect_that(strpos($html, 'Connect to AguMail') !== false && strpos($html, 'https://api.agumail.test') === false, 'a feature\'s own connection section did not replace the stand-in');
 }
 
-function test_http_guard_the_settings_page_is_a_woocommerce_submenu_for_store_managers() {
+function test_http_guard_the_settings_page_is_a_top_level_menu_for_store_managers() {
     do_action('admin_menu');
     $menu = $GLOBALS['agm']['menus'][0];
-    expect_same(array('woocommerce', 'AguMail', 'AguMail', 'manage_woocommerce', 'agumail'), array_slice($menu, 0, 5), 'wrong menu entry');
+    expect_same(array('AguMail', 'AguMail', 'manage_agumail', 'agumail'), array_slice($menu, 0, 4), 'wrong menu entry');
+    expect_same('toplevel_page_agumail', agumail_admin_hook_suffix(), 'the page\'s hook suffix was not kept');
+    // On a store, managing AguMail is managing WooCommerce.
+    agm_grant('manage_woocommerce');
+    expect_that(current_user_can(AGUMAIL_ADMIN_CAPABILITY), 'a store manager cannot open the settings page');
+    agm_grant('manage_woocommerce', false);
+    agm_grant('manage_options');
+    expect_that(!current_user_can(AGUMAIL_ADMIN_CAPABILITY), 'an administrator who does not manage the store can open the settings page');
 }
 
 // ── Store staff and the key ──

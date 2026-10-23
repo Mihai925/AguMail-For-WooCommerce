@@ -4,14 +4,21 @@
 // simulated request.
 
 require __DIR__ . '/fakes/core.php';
+// AGM_NO_WOOCOMMERCE=1 loads a WordPress site without WooCommerce: none of its
+// classes, functions or logger, and none of the fakes built on them.
+$agm_skipped = getenv('AGM_NO_WOOCOMMERCE') ? array('wc.php', 'orders_products.php', 'p4.php', 'logger.php') : array();
 foreach (glob(__DIR__ . '/fakes/*.php') as $agm_fake) {
-    // AGM_NO_SCHEDULER=1 loads a store without Action Scheduler, as when WooCommerce is inactive.
-    if (basename($agm_fake) === 'core.php' || (basename($agm_fake) === 'scheduler.php' && getenv('AGM_NO_SCHEDULER'))) {
+    // AGM_NO_SCHEDULER=1 loads a site without Action Scheduler, as when WooCommerce is inactive and the bundled copy is not loaded.
+    if (basename($agm_fake) === 'core.php' || (basename($agm_fake) === 'scheduler.php' && getenv('AGM_NO_SCHEDULER'))
+        || in_array(basename($agm_fake), $agm_skipped, true)) {
         continue;
     }
     require_once $agm_fake;
 }
-unset($agm_fake);
+unset($agm_fake, $agm_skipped);
+if (!isset($GLOBALS['agm']['logs'])) {
+    $GLOBALS['agm']['logs'] = array();
+}
 
 // ── Assertions ──
 
@@ -58,6 +65,10 @@ function agm_plugin_loaded() {
     }
     if (function_exists('agumail_set_store') && class_exists('Agm_Fake_Store')) {
         agumail_set_store(new Agm_Fake_Store());
+    }
+    // WooCommerce loads during plugins_loaded, before anything the scenarios run.
+    if (class_exists('WooCommerce')) {
+        do_action('woocommerce_loaded');
     }
     $GLOBALS['agm']['writes'] = array();
 }

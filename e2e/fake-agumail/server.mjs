@@ -30,6 +30,13 @@
 //   apiKey: 'agm_...'          when set, only this key is accepted (default: any agm_ key)
 //   connectPage: 'approve' | 'show' | 'deny'   the fake app's connect page behaviour
 //   codeTtlMs: N               how long a connect code lives (default 10 minutes; negative issues expired codes)
+//   storeSync: true | false    whether the account's plan has store sync (default true). Without it,
+//                              like the real server, connecting a store and sending orders, carts and
+//                              products answer 402 {code: PLAN_FEATURE, feature: storeSync} before the
+//                              request is read; contacts, signups, forms and ping work on every plan.
+//
+// Ping answers about a store only when asked (?platform=woocommerce); a site connected with a
+// key alone asks with no platform and gets integration: null, as from the real server.
 
 import http from 'node:http';
 import fs from 'node:fs';
@@ -76,8 +83,17 @@ function freshControl() {
     apiKey: null,
     connectPage: 'approve',
     codeTtlMs: 10 * 60 * 1000,
+    storeSync: true,
   };
 }
+
+const STORE_SYNC_REFUSAL = {
+  ok: false,
+  error: 'Connecting a store, and sending its orders, carts and products, is on the Commerce plans. Contacts, signups and events work on every plan.',
+  code: 'PLAN_FEATURE',
+  feature: 'storeSync',
+};
+const STORE_PATHS = ['/api/v1/connect', '/api/v1/orders', '/api/v1/carts', '/api/v1/products'];
 
 function freshData() {
   return {
@@ -262,10 +278,15 @@ function handleApi(req, res, url, body) {
   }
 
   if (p === '/api/v1/ping' && req.method === 'GET') {
-    const integration = control.integrationStatus
+    const asked = url.searchParams.get('platform') === 'woocommerce';
+    const integration = asked && control.integrationStatus
       ? { status: control.integrationStatus, storeUrl: control.storeUrl || 'localhost:8089' }
       : null;
     return send(res, 200, { ok: true, shop: SHOP, integration, config: config() });
+  }
+
+  if (!control.storeSync && STORE_PATHS.includes(p) && req.method === 'POST') {
+    return send(res, 402, STORE_SYNC_REFUSAL);
   }
 
   if (p === '/api/v1/connect' && req.method === 'POST') {
@@ -397,6 +418,10 @@ function exchange(res, body) {
   }
   if (hostOf(body.storeUrl) !== hostOf(payload.store)) {
     return send(res, 400, { ok: false, error: EXPIRED });
+  }
+  // The real exchange checks the plan again: a store connects only with store sync.
+  if (!control.storeSync) {
+    return send(res, 402, STORE_SYNC_REFUSAL);
   }
   data.usedCodes.add(body.code);
   const apiKey = 'agm_' + crypto.randomBytes(20).toString('hex');
@@ -570,7 +595,7 @@ function controlRoute(req, res, url, body) {
       control.times = null;
       control.match = null;
     }
-    for (const k of ['delayMs', 'retryAfter', 'index', 'match', 'paths', 'times', 'integrationStatus', 'storeUrl', 'forms', 'apiKey', 'connectPage', 'codeTtlMs']) {
+    for (const k of ['delayMs', 'retryAfter', 'index', 'match', 'paths', 'times', 'integrationStatus', 'storeUrl', 'forms', 'apiKey', 'connectPage', 'codeTtlMs', 'storeSync']) {
       if (b[k] !== undefined) control[k] = b[k];
     }
     if (b.statuses && typeof b.statuses === 'object') {

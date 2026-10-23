@@ -18,6 +18,8 @@ export type FakeControl = {
   connectPage?: 'approve' | 'show' | 'deny';
   /** How long a connect code lives; negative issues codes that are already expired. */
   codeTtlMs?: number;
+  /** Whether the account's plan has store sync (default true); without it stores connect for forms and signups only. */
+  storeSync?: boolean;
   releaseHung?: boolean;
 };
 
