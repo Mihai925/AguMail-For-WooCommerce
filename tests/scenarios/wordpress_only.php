@@ -306,7 +306,7 @@ function wordpress_only_log() {
 function test_wordpress_only_the_bundled_action_scheduler_loads_only_without_woocommerce() {
     // Here WooCommerce is loaded: its own Action Scheduler is the one.
     agumail_load_action_scheduler();
-    expect_that(!function_exists('action_scheduler_register_3_dot_9_dot_3'), 'the bundled Action Scheduler loaded beside WooCommerce');
+    expect_that(!function_exists('action_scheduler_register_4_dot_2_dot_0'), 'the bundled Action Scheduler loaded beside WooCommerce');
     wordpress_only_run('wordpress_only_action_scheduler', array('AGM_NO_SCHEDULER' => '1'));
 }
 
@@ -314,6 +314,6 @@ function wordpress_only_action_scheduler($plugin_dir) {
     wordpress_only_check_process();
     expect_that(!function_exists('as_enqueue_async_action'), 'Action Scheduler is loaded in this process');
     agumail_load_action_scheduler();
-    expect_that(function_exists('action_scheduler_register_3_dot_9_dot_3'), 'the bundled Action Scheduler did not load');
-    expect_that(is_readable($plugin_dir . '/lib/action-scheduler/license.txt'), 'Action Scheduler\'s licence is not bundled with it');
+    expect_that(function_exists('action_scheduler_register_4_dot_2_dot_0'), 'the bundled Action Scheduler did not load');
+    expect_that(is_readable($plugin_dir . '/vendor/woocommerce/action-scheduler/license.txt'), 'Action Scheduler\'s licence is not bundled with it');
 }

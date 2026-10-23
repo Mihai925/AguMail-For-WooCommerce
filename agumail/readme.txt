@@ -5,8 +5,8 @@ Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
 WC requires at least: 8.0
-WC tested up to: 11.1
-Stable tag: 1.0.0-dev
+WC tested up to: 11.2
+Stable tag: 1.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -53,7 +53,7 @@ Each form chooses its tags, whether signups confirm by email first, and which fi
 == Installation ==
 
 1. Create your free AguMail account at [agumail.com](https://agumail.com/signup?utm_source=wordpress.org&utm_medium=readme&utm_campaign=installation), or sign in to the one you have.
-2. In WordPress, go to Plugins > Add New, search for AguMail and install it, or upload the ZIP. Activate it.
+2. In WordPress, go to Plugins > Add New Plugin, search for AguMail and install it, or upload the ZIP. Activate it.
 3. Open **AguMail** in your admin menu and connect:
     * **On a WooCommerce store**, press **Connect to AguMail**, check the store address in AguMail and approve. Then press **Sync store data now** to bring in your customers, products and past orders.
     * **On any other site**, create an API key in AguMail under Settings > API keys, paste it on the AguMail page and press **Connect**.
@@ -137,7 +137,7 @@ AguMail's privacy policy: https://agumail.com/privacy
 
 == Third-party libraries ==
 
-On a site without WooCommerce, the plugin runs its background tasks on Action Scheduler 3.9.3 (https://actionscheduler.org, GPLv3 or later), bundled in lib/action-scheduler. On a WooCommerce store, WooCommerce's own copy is used.
+On a site without WooCommerce, the plugin runs its background tasks on Action Scheduler 4.2.0 (https://actionscheduler.org, GPLv3 or later), bundled in vendor/woocommerce/action-scheduler. On a WooCommerce store, WooCommerce's own copy is used.
 
 == Changelog ==
 

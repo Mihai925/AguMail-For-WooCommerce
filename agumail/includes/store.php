@@ -194,7 +194,7 @@ class Agumail_Store {
         $args = $before !== null ? array_merge($type_args, array($before)) : $type_args;
         // phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- $type_sql is an IN () list of placeholders and $before_sql one placeholder; their values are in the arguments.
         return (int) $wpdb->query($wpdb->prepare(
-            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- as above.
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- as above.
             "DELETE FROM {$wpdb->prefix}agumail_outbox WHERE `status` = 'pending'{$type_sql}{$before_sql}",
             $args
         ));

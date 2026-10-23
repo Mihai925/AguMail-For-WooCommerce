@@ -97,7 +97,7 @@ function agumail_tracking_enqueue() {
     if (!$site) {
         return;
     }
-    // No version: the address is AguMail's and already carries its own.
+    // phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion -- no version: the address is AguMail's and already carries its own.
     wp_enqueue_script(AGUMAIL_SITE_HANDLE, $site['src'], array(), null, false);
     $identify = agumail_tracking_identify_script();
     if ($identify !== '') {

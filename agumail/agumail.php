@@ -3,7 +3,7 @@
  * Plugin Name:          AguMail: Email Marketing Made Easy
  * Plugin URI:           https://agumail.com
  * Description:          Signup forms, popups and the forms you already have, sending to AguMail. On a WooCommerce store it also syncs customers, orders, carts and products, for abandoned-cart recovery and revenue attribution.
- * Version:              1.0.0-dev
+ * Version:              1.0.0
  * Author:               AguMail
  * License:              GPLv2 or later
  * License URI:          https://www.gnu.org/licenses/gpl-2.0.html
@@ -11,14 +11,14 @@
  * Requires at least:    6.5
  * Requires PHP:         7.4
  * WC requires at least: 8.0
- * WC tested up to:      11.1
+ * WC tested up to:      11.2
  */
 
 if (!defined('ABSPATH')) {
     exit;
 }
 
-define('AGUMAIL_VERSION', '1.0.0-dev');
+define('AGUMAIL_VERSION', '1.0.0');
 define('AGUMAIL_FILE', __FILE__);
 define('AGUMAIL_DIR', __DIR__ . '/');
 
@@ -34,7 +34,7 @@ define('AGUMAIL_DIR', __DIR__ . '/');
 //
 // One rule holds across all of them: a visitor's request never talks to
 // AguMail. Front-end hooks only record what changed in the outbox; the drain,
-// run by Action Scheduler (WooCommerce's, or the copy bundled in lib/ on a
+// run by Action Scheduler (WooCommerce's, or the copy bundled in vendor/ on a
 // site without it), is what sends it.
 // ─────────────────────────────────────────────────────────────────────────────
 

@@ -149,6 +149,7 @@ function agumail_forms_loader_url() {
 /** Once per page, in the footer, whatever number of forms the page has. */
 function agumail_forms_enqueue_loader($url) {
     if (!wp_script_is(AGUMAIL_FORMS_HANDLE, 'enqueued')) {
+        // phpcs:ignore WordPress.WP.EnqueuedResourceParameters.MissingVersion -- AguMail's address, which carries its own version.
         wp_enqueue_script(AGUMAIL_FORMS_HANDLE, $url, array(), null, true);
     }
 }

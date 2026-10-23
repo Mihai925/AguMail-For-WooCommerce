@@ -50,13 +50,17 @@ function test_consent_declares_hpos_and_block_checkout_support() {
 
 function test_consent_the_plugin_header_names_the_versions_it_needs($plugin_dir) {
     $header = file_get_contents($plugin_dir . '/agumail.php', false, null, 0, 2048);
-    foreach (array('Plugin Name:          AguMail: Email Marketing Made Easy', 'Version:              1.0.0-dev', 'Requires at least:    6.5',
-        'Requires PHP:         7.4', 'WC requires at least: 8.0', 'WC tested up to:      11.1') as $line) {
+    foreach (array('Plugin Name:          AguMail: Email Marketing Made Easy', 'Version:              1.0.0', 'Requires at least:    6.5',
+        'Requires PHP:         7.4', 'WC requires at least: 8.0', 'WC tested up to:      11.2') as $line) {
         expect_that(strpos($header, $line) !== false, 'the plugin header is missing "' . $line . '"');
     }
     // It runs on any WordPress site, so WordPress must not hold it back without WooCommerce.
     expect_that(strpos($header, 'Requires Plugins') === false, 'the plugin header still requires WooCommerce');
-    expect_same('1.0.0-dev', AGUMAIL_VERSION, 'wrong AGUMAIL_VERSION');
+    expect_same('1.0.0', AGUMAIL_VERSION, 'wrong AGUMAIL_VERSION');
+    // WordPress.org refuses a version that is not digits and dots, and serves the readme's Stable tag.
+    expect_that(preg_match('/^\d+(\.\d+)*$/', AGUMAIL_VERSION) === 1, 'AGUMAIL_VERSION is not digits and dots');
+    $readme = file_get_contents($plugin_dir . '/readme.txt');
+    expect_that(strpos($readme, "\nStable tag: " . AGUMAIL_VERSION . "\n") !== false, 'the readme\'s Stable tag is not AGUMAIL_VERSION');
 }
 
 function test_consent_the_block_checkout_registers_the_checkbox() {
@@ -206,6 +210,28 @@ function test_consent_the_block_default_only_ticks_a_draft_that_holds_no_value()
     expect_same(null, consent_block_default(new WC_Customer(7)), 'the customer record was given the default, and would tick an unticked draft again');
     expect_same(null, consent_block_default(null), 'no object was given the default');
     expect_same('1', apply_filters('woocommerce_get_default_value_for_agumail/optin', '1', 'other', consent_order()), 'another plugin\'s default was overridden');
+}
+
+function test_consent_from_woocommerce_10_9_the_block_default_ticks_a_customer_record_that_holds_no_value() {
+    require_once dirname(__DIR__) . '/fakes/wc_10_9/checkout_schema.php';
+    expect_same(null, consent_block_default(new WC_Customer(7)), 'the customer record starts ticked out of the box');
+
+    consent_tick_by_default();
+    // No order exists until the shopper places it: the checkout is drawn from the customer record.
+    expect_same(true, consent_block_default(new WC_Customer(7)), 'the block box does not start ticked');
+    $unticked = new WC_Customer(7);
+    $unticked->update_meta_data('_wc_other/agumail/optin', '0');
+    expect_same(null, consent_block_default($unticked), 'a box the shopper unticked was ticked again');
+    $ticked = new WC_Customer(7);
+    $ticked->update_meta_data('_wc_other/agumail/optin', '1');
+    expect_same(null, consent_block_default($ticked), 'a customer record with a value was given the default');
+    // A payment retried on the order of one that failed is drawn from that order.
+    expect_same(true, consent_block_default(consent_order()), 'an order holding no value does not start ticked');
+
+    // A customer who already said no.
+    add_filter('agumail_checkout_optin_starts_ticked', '__return_false');
+    expect_same(null, consent_block_default(new WC_Customer(7)), 'the box started ticked for a shopper it should not');
+    expect_same(array(), agm_writes(), 'drawing the box wrote something');
 }
 
 // ── Links in the label ──

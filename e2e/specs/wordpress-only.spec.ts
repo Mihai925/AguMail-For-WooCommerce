@@ -117,7 +117,7 @@ test('the site connects with an API key, checked with ping alone', async ({ brow
 
   // The Action Scheduler running AguMail's jobs is the copy the plugin bundles.
   const scheduler = lastLine(await wpEval("echo (new ReflectionClass('ActionScheduler'))->getFileName();"));
-  expect(scheduler).toContain('/plugins/agumail/lib/action-scheduler/');
+  expect(scheduler).toContain('/plugins/agumail/vendor/woocommerce/action-scheduler/');
 });
 
 test('a form shows and a Contact Form 7 signup reaches AguMail through the bundled Action Scheduler', async ({ browser }) => {

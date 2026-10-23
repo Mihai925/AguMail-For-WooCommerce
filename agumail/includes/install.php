@@ -8,9 +8,10 @@
 // the tables exist.
 //
 // Action Scheduler comes with WooCommerce. A site without WooCommerce runs the
-// copy in lib/action-scheduler, loaded only when WooCommerce is not active, so
-// a store always runs WooCommerce's own. Both keep their jobs in the same
-// tables, so a site that switches WooCommerce on or off keeps its jobs.
+// copy in vendor/woocommerce/action-scheduler, loaded only when WooCommerce is
+// not active, so a store always runs WooCommerce's own. Both keep their jobs
+// in the same tables, so a site that switches WooCommerce on or off keeps its
+// jobs.
 
 if (!defined('ABSPATH')) {
     exit;
@@ -33,7 +34,7 @@ function agumail_load_action_scheduler() {
     if (class_exists('WooCommerce') || function_exists('as_enqueue_async_action')) {
         return;
     }
-    $file = AGUMAIL_DIR . 'lib/action-scheduler/action-scheduler.php';
+    $file = AGUMAIL_DIR . 'vendor/woocommerce/action-scheduler/action-scheduler.php';
     if (is_readable($file)) {
         require_once $file;
     }

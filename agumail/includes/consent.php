@@ -100,8 +100,10 @@ function agumail_record_classic_optin($order) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Block checkout (WooCommerce 8.9 and later; on older stores only the classic
-// checkout asks). The same Store API hook runs when the draft order is saved
-// (PUT) and when the order is placed (POST); only the POST is a submission.
+// checkout asks). Up to WooCommerce 10.8 the same Store API hook runs when the
+// draft order is saved (PUT) and when the order is placed (POST); from 10.9 it
+// runs only for the POST, or for a PUT on the order of a failed payment. Only
+// the POST is a submission.
 // ─────────────────────────────────────────────────────────────────────────────
 
 add_action('woocommerce_init', 'agumail_register_block_optin');
@@ -127,19 +129,34 @@ function agumail_register_block_optin() {
 add_filter('woocommerce_get_default_value_for_' . AGUMAIL_CHECKOUT_FIELD, 'agumail_block_optin_default', 10, 3);
 
 /**
- * The block checkout draws the box from the order it is drafting. When the
- * box starts ticked for this shopper, a draft that holds no value for it
- * starts ticked; once the shopper touches the box, the draft keeps their choice
- * and this is not asked. Orders only: WooCommerce copies the shopper's customer
- * record into the draft each time it updates the draft, and a default there
- * would tick the box again after the shopper unticked it.
+ * The block checkout draws the box from what it holds for the shopper. When
+ * the box starts ticked for this shopper and that holds no value for it yet,
+ * it starts ticked; once the shopper touches the box, their choice is kept and
+ * this is not asked.
+ *
+ * Up to WooCommerce 10.8 the checkout drafts an order as the shopper goes and
+ * draws the box from it. Orders only there: WooCommerce copies the shopper's
+ * customer record into the draft each time it updates the draft, and a default
+ * there would tick the box again after the shopper unticked it. From 10.9 no
+ * order exists until the shopper places it, and the box is drawn from the
+ * customer record, which keeps the shopper's choice, so the customer record
+ * gets the default too. An order still does, for a payment retried on the
+ * order of one that failed.
  */
 function agumail_block_optin_default($value, $group = '', $object = null) {
-    if ($value !== null || !is_object($object) || !is_a($object, 'WC_Order') || !agumail_checkout_optin_starts_ticked()) {
+    if ($value !== null || !is_object($object) || !agumail_checkout_optin_starts_ticked()) {
         return $value;
     }
-    // Where WooCommerce keeps an order's own additional fields.
+    if (!is_a($object, 'WC_Order') && !(is_a($object, 'WC_Customer') && agumail_block_checkout_defers_order())) {
+        return $value;
+    }
+    // Where WooCommerce keeps an order's or a customer's own additional fields.
     return $object->meta_exists('_wc_other/' . AGUMAIL_CHECKOUT_FIELD) ? $value : true;
+}
+
+/** WooCommerce 10.9 and later: the block checkout creates the order only when the shopper places it. */
+function agumail_block_checkout_defers_order() {
+    return method_exists('Automattic\WooCommerce\StoreApi\Schemas\V1\CheckoutSchema', 'get_draft_response');
 }
 
 function agumail_block_optin_registered($set = null) {

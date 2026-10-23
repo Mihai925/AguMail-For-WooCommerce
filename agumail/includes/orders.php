@@ -46,7 +46,7 @@ function agumail_order_capture_campaign() {
     if (!isset($_GET[AGUMAIL_CID_COOKIE]) || !is_string($_GET[AGUMAIL_CID_COOKIE])) {
         return;
     }
-    $cid = agumail_order_clean_campaign(wp_unslash($_GET[AGUMAIL_CID_COOKIE]));
+    $cid = agumail_order_clean_campaign(sanitize_text_field(wp_unslash($_GET[AGUMAIL_CID_COOKIE])));
     // phpcs:enable
     if ($cid === null || agumail_order_campaign() === $cid) {
         return;
@@ -71,7 +71,9 @@ function agumail_order_clean_campaign($value) {
 
 /** The campaign in the shopper's cookie, or null. */
 function agumail_order_campaign() {
-    return isset($_COOKIE[AGUMAIL_CID_COOKIE]) ? agumail_order_clean_campaign(wp_unslash($_COOKIE[AGUMAIL_CID_COOKIE])) : null;
+    return isset($_COOKIE[AGUMAIL_CID_COOKIE]) && is_string($_COOKIE[AGUMAIL_CID_COOKIE])
+        ? agumail_order_clean_campaign(sanitize_text_field(wp_unslash($_COOKIE[AGUMAIL_CID_COOKIE])))
+        : null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

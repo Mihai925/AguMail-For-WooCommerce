@@ -730,7 +730,7 @@ function test_shopper_path_only_http_php_calls_out($plugin_dir) {
         $relative = ltrim(str_replace('\\', '/', substr($file->getPathname(), strlen($plugin_dir))), '/');
         // Action Scheduler, bundled for sites without WooCommerce: its only request
         // is the loopback that starts its queue runner on this site's own admin-ajax.php.
-        if ($relative === 'includes/http.php' || strpos($relative, 'lib/action-scheduler/') === 0) {
+        if ($relative === 'includes/http.php' || strpos($relative, 'vendor/woocommerce/action-scheduler/') === 0) {
             continue;
         }
         $code = file_get_contents($file->getPathname());
