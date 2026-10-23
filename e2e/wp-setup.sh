@@ -6,7 +6,7 @@
 #   ./wp-setup.sh setup              install WordPress, WooCommerce, Storefront, pages, payments, products
 #   ./wp-setup.sh seed [count]       1,200 (default) shoppers with paid orders over ~2 years
 #   ./wp-setup.sh checkout classic|block|checkoutwc
-#   ./wp-setup.sh plugin none|v1|v2  which AguMail plugin is active (v2 = agumail-for-woocommerce)
+#   ./wp-setup.sh plugin none|v1|v2  which AguMail plugin is active (v2 = agumail)
 #   ./wp-setup.sh woo on|off         WooCommerce on, or off for a plain WordPress site (CheckoutWC,
 #                                    which needs it, goes off with it)
 #   ./wp-setup.sh connect [apiUrl]   give the active plugin an API key and point it at apiUrl

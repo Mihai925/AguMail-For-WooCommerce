@@ -17,7 +17,7 @@ The compose project is always `agumail-woo-e2e` (set in `.env` and passed by eve
 
 Mounted into WordPress, read-only:
 
-- `../agumail-for-woocommerce` as `wp-content/plugins/agumail` (the plugin under development, "v2")
+- `../agumail` as `wp-content/plugins/agumail` (the plugin under development, "v2")
 - `fixtures/agumail-v1` as `wp-content/plugins/agumail-v1` (the released 1.2.0, extracted from git HEAD, kept for the "v1 slows checkout" proof)
 - CheckoutWC from `CHECKOUTWC_DIR` (default: Mihai's pixel-woo copy) as `wp-content/plugins/checkout-for-woocommerce`. Local testing only, never copied into the repo. Fallback: point `CHECKOUTWC_DIR` in `.env` at `.../plugins/checkoutwc-lite`.
 - Elementor 4.0.3 and Elementor Pro 4.0.3 from `ELEMENTOR_DIR` and `ELEMENTOR_PRO_DIR` (defaults: the pixel-woo copies) as `wp-content/plugins/elementor` and `elementor-pro`, the same way. Elementor Pro runs its form widget and actions without a licence key. Both stay inactive unless a spec switches them on.
@@ -65,7 +65,7 @@ Exact counts are written to `.state/seed.json` (re-run `seed` to refresh `orders
 ./wp-setup.sh checkout block        # WooCommerce's block checkout, CheckoutWC off
 ./wp-setup.sh checkout checkoutwc   # classic pages with CheckoutWC active and its templates on
 
-./wp-setup.sh plugin none|v1|v2     # which AguMail plugin is active (v2 = agumail-for-woocommerce)
+./wp-setup.sh plugin none|v1|v2     # which AguMail plugin is active (v2 = agumail)
 ./wp-setup.sh woo on|off            # WooCommerce on, or off for a plain WordPress site (CheckoutWC goes off with it)
 ./wp-setup.sh connect [apiUrl]      # API key + URL (default http://fake-agumail:8090)
 ./wp-setup.sh cron on|off           # real WP-Cron and Action Scheduler async runner (default off)

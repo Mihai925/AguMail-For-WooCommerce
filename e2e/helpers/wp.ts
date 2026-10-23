@@ -35,7 +35,7 @@ export async function checkoutWcAvailable(): Promise<boolean> {
 
 const PLUGIN_SLUGS: Record<PluginUnderTest, string> = { v1: 'agumail-v1', v2: 'agumail' };
 
-/** Which AguMail plugin is active: none, v1 (the 1.2.0 fixture) or v2 (agumail-for-woocommerce). */
+/** Which AguMail plugin is active: none, v1 (the 1.2.0 fixture) or v2 (agumail). */
 export async function activatePlugin(which: 'none' | PluginUnderTest): Promise<void> {
   const active = (await wp('plugin', 'list', '--status=active', '--field=name')).split('\n');
   for (const [version, slug] of Object.entries(PLUGIN_SLUGS)) {

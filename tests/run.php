@@ -12,7 +12,7 @@
 // folder. A test passes when it returns normally, so code that exits halfway
 // through a test is reported as a failure.
 
-$plugin_dir = getenv('AGUMAIL_PLUGIN_DIR') ?: dirname(__DIR__) . '/agumail-for-woocommerce';
+$plugin_dir = getenv('AGUMAIL_PLUGIN_DIR') ?: dirname(__DIR__) . '/agumail';
 $scenarios  = __DIR__ . '/scenarios';
 
 if ($argc > 3 && $argv[1] === '--child') {

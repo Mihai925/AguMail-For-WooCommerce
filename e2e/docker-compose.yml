@@ -75,7 +75,7 @@ services:
       - "8089:8089"
     volumes:
       - wp_html:/var/www/html
-      - ../agumail-for-woocommerce:/var/www/html/wp-content/plugins/agumail:ro
+      - ../agumail:/var/www/html/wp-content/plugins/agumail:ro
       - ./fixtures/agumail-v1:/var/www/html/wp-content/plugins/agumail-v1:ro
       - ${CHECKOUTWC_DIR:-/home/mihai/Projects/pixel-woo/wp-content/plugins/checkout-for-woocommerce}:/var/www/html/wp-content/plugins/checkout-for-woocommerce:ro
       - ${ELEMENTOR_DIR:-/home/mihai/Projects/pixel-woo/wp-content/plugins/elementor}:/var/www/html/wp-content/plugins/elementor:ro
@@ -99,7 +99,7 @@ services:
       HOME: /tmp
     volumes:
       - wp_html:/var/www/html
-      - ../agumail-for-woocommerce:/var/www/html/wp-content/plugins/agumail:ro
+      - ../agumail:/var/www/html/wp-content/plugins/agumail:ro
       - ./fixtures/agumail-v1:/var/www/html/wp-content/plugins/agumail-v1:ro
       - ${CHECKOUTWC_DIR:-/home/mihai/Projects/pixel-woo/wp-content/plugins/checkout-for-woocommerce}:/var/www/html/wp-content/plugins/checkout-for-woocommerce:ro
       - ${ELEMENTOR_DIR:-/home/mihai/Projects/pixel-woo/wp-content/plugins/elementor}:/var/www/html/wp-content/plugins/elementor:ro
